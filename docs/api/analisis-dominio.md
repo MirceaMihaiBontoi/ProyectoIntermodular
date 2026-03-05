@@ -157,6 +157,12 @@ Una peticion enviada con numero de plazas mayor a la capacidad:
 }
 ```
 
+## Validación Swagger UI
+
+La siguiente captura muestra la especificación OpenAPI cargada correctamente en Swagger UI, con los endpoints y ejemplos de respuesta visibles:
+
+![Swagger UI](img/swagger-ui-screenshot.png)
+
 ## Conclusión
 
 La tabla `reserva` tiene 9 campos, de los cuales 7 se envían o reciben directamente en la API

@@ -1,0 +1,295 @@
+openapi: 3.0.3
+info:
+  title: API Sistema de Reservas
+  description: >
+    API REST para la gestion de reservas de recursos (salas de reuniones,
+    instalaciones deportivas, etc.). Permite a los usuarios normales crear,
+    consultar, modificar y cancelar sus reservas.
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Servidor de desarrollo
+
+components:
+  schemas:
+    Reserva:
+      type: object
+      description: Reserva completa tal como la devuelve el servidor.
+      properties:
+        id_recurso:
+          type: integer
+          description: ID del recurso reservado.
+          example: 1
+        id_reserva_local:
+          type: integer
+          description: ID local de la reserva dentro del recurso (asignado por el backend).
+          example: 3
+        id_usuario:
+          type: integer
+          description: ID del usuario que realizo la reserva.
+          example: 6
+        recurso_nombre:
+          type: string
+          description: Nombre del recurso reservado (obtenido por JOIN con la tabla recurso).
+          example: "Sala de reuniones A"
+        fecha:
+          type: string
+          format: date
+          description: Fecha de la reserva.
+          example: "2026-03-15"
+        hora_inicio:
+          type: string
+          description: Hora de inicio de la reserva (formato HH:MM:SS).
+          example: "09:00:00"
+        hora_fin:
+          type: string
+          description: Hora de fin de la reserva (formato HH:MM:SS).
+          example: "10:00:00"
+        coste:
+          type: number
+          format: double
+          description: Coste calculado por el backend segun recurso y duracion.
+          example: 15.00
+        numero_plazas:
+          type: integer
+          minimum: 1
+          description: Numero de plazas reservadas.
+          example: 5
+        motivo:
+          type: string
+          maxLength: 20
+          description: Motivo de la reserva.
+          example: "Reunion de equipo"
+
+    ReservaInput:
+      type: object
+      description: Datos que envia el cliente para crear o modificar una reserva.
+      required:
+        - id_recurso
+        - fecha
+        - hora_inicio
+        - hora_fin
+      properties:
+        id_recurso:
+          type: integer
+          description: ID del recurso a reservar.
+          example: 1
+        fecha:
+          type: string
+          format: date
+          description: Fecha de la reserva. Debe ser una fecha futura.
+          example: "2026-03-15"
+        hora_inicio:
+          type: string
+          description: Hora de inicio (formato HH:MM:SS).
+          example: "09:00:00"
+        hora_fin:
+          type: string
+          description: Hora de fin (formato HH:MM:SS). Debe ser posterior a hora_inicio.
+          example: "10:00:00"
+        numero_plazas:
+          type: integer
+          minimum: 1
+          description: Numero de plazas a reservar. No puede superar la capacidad del recurso.
+          example: 5
+        motivo:
+          type: string
+          maxLength: 20
+          description: Motivo de la reserva (opcional).
+          example: "Reunion de equipo"
+
+    Error:
+      type: object
+      description: Respuesta de error del servidor.
+      properties:
+        error:
+          type: string
+          description: Descripcion general del error.
+          example: "Datos de entrada invalidos"
+        detalles:
+          type: array
+          description: Lista de errores especificos por campo (opcional).
+          items:
+            type: object
+            properties:
+              campo:
+                type: string
+                description: Campo que causo el error.
+                example: "hora_fin"
+              mensaje:
+                type: string
+                description: Descripcion del error en ese campo.
+                example: "La hora de fin debe ser posterior a la hora de inicio"
+
+paths:
+  /reservas:
+    get:
+      summary: Listar reservas del usuario autenticado
+      description: >
+        Devuelve todas las reservas realizadas por el usuario identificado
+        mediante el token JWT. Un administrador puede ver todas las reservas.
+      responses:
+        "200":
+          description: Lista de reservas obtenida correctamente.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Reserva"
+        "401":
+          description: Token JWT ausente o invalido.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+    post:
+      summary: Crear una nueva reserva
+      description: >
+        Crea una reserva para el usuario autenticado en el recurso y franja
+        horaria indicados. El backend valida la disponibilidad y calcula el coste.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReservaInput"
+      responses:
+        "201":
+          description: Reserva creada correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Reserva"
+        "400":
+          description: Datos de entrada invalidos (fechas incorrectas, solapamiento, etc.).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Token JWT ausente o invalido.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /reservas/{id_recurso}/{id_reserva_local}:
+    parameters:
+      - name: id_recurso
+        in: path
+        required: true
+        description: ID del recurso al que pertenece la reserva.
+        schema:
+          type: integer
+          example: 1
+      - name: id_reserva_local
+        in: path
+        required: true
+        description: ID local de la reserva dentro del recurso.
+        schema:
+          type: integer
+          example: 3
+
+    get:
+      summary: Obtener detalles de una reserva
+      description: >
+        Devuelve los detalles completos de una reserva especifica.
+        Un usuario normal solo puede consultar sus propias reservas.
+      responses:
+        "200":
+          description: Detalles de la reserva.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Reserva"
+        "401":
+          description: Token JWT ausente o invalido.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: El usuario no tiene permisos para ver esta reserva.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: La reserva no existe.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+    patch:
+      summary: Modificar parcialmente una reserva
+      description: >
+        Actualiza uno o varios campos de una reserva existente.
+        Solo el propietario de la reserva (o un administrador) puede modificarla.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReservaInput"
+      responses:
+        "200":
+          description: Reserva actualizada correctamente.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Reserva"
+        "400":
+          description: Datos de entrada invalidos.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Token JWT ausente o invalido.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: El usuario no tiene permisos para modificar esta reserva.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: La reserva no existe.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+    delete:
+      summary: Eliminar una reserva
+      description: >
+        Elimina una reserva existente. Solo el propietario (o un administrador)
+        puede eliminarla.
+      responses:
+        "204":
+          description: Reserva eliminada correctamente. Sin contenido en la respuesta.
+        "401":
+          description: Token JWT ausente o invalido.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: El usuario no tiene permisos para eliminar esta reserva.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: La reserva no existe.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
