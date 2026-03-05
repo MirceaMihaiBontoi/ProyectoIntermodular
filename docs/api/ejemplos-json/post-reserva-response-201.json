@@ -1,0 +1,12 @@
+{
+  "id_recurso": 1,
+  "id_reserva_local": 3,
+  "id_usuario": 6,
+  "recurso_nombre": "Sala de reuniones A",
+  "fecha": "2026-03-15",
+  "hora_inicio": "09:00:00",
+  "hora_fin": "10:00:00",
+  "coste": 15.00,
+  "numero_plazas": 5,
+  "motivo": "Reunion de equipo"
+}

@@ -1,0 +1,17 @@
+{
+  "error": "Datos de entrada invalidos",
+  "detalles": [
+    {
+      "campo": "hora_fin",
+      "mensaje": "La hora de fin debe ser posterior a la hora de inicio"
+    },
+    {
+      "campo": "numero_plazas",
+      "mensaje": "El numero de plazas debe ser mayor que 0"
+    },
+    {
+    "campo": "numero_plazas",
+    "mensaje": "El numero de plazas supera la capacidad del recurso"
+    }
+  ]
+}

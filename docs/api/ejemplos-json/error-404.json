@@ -1,0 +1,9 @@
+{
+  "error": "Recurso no encontrado",
+  "detalles": [
+    {
+      "campo": "id_recurso",
+      "mensaje": "No existe ningun recurso con id_recurso=99"
+    }
+  ]
+}

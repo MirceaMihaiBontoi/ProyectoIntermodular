@@ -1,0 +1,9 @@
+{
+  "error": "Acceso denegado",
+  "detalles": [
+    {
+      "campo": "id_reserva_local",
+      "mensaje": "No tienes permiso para modificar una reserva que no es tuya"
+    }
+  ]
+}
