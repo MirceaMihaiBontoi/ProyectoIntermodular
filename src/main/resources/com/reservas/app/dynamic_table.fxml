@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.geometry.Insets?>
+<?import java.net.*?>
+
+<!-- 
+    TEMPLATE: This FXML is loaded multiple times (one for each database table).
+    SplitPane: Allows the user to drag and resize the division between table and form.
+-->
+<SplitPane dividerPositions="0.6" orientation="VERTICAL" xmlns="http://javafx.com/javafx/8.0.171" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.reservas.app.controller.DynamicTableController">
+    <stylesheets>
+        <URL value="@style.css" />
+    </stylesheets>
+    <items>
+        <!-- TableView: The grid that displays all the rows from the database -->
+        <AnchorPane>
+            <children>
+                <TableView fx:id="dynamicTable" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" />
+            </children>
+        </AnchorPane>
+        
+        <!-- Bottom: Form -->
+        <VBox spacing="10" style="-fx-background-color: #fdfdfd; -fx-padding: 15;">
+            <children>
+                <!-- ScrollPane: Adds scrollbars if the form becomes too large for the screen -->
+                <ScrollPane fitToWidth="true" VBox.vgrow="ALWAYS" style="-fx-background-color: transparent;">
+                    <content>
+                        <!-- 
+                           GridPane: This is the most important part of the dynamic UI.
+                           Java will inject the Labels and Input Fields here in a grid layout.
+                        -->
+                        <GridPane fx:id="dynamicForm" hgap="20" vgap="15">
+                            <padding>
+                                <Insets bottom="10" left="10" right="10" top="10" />
+                            </padding>
+                            <!-- 
+                               No children here! Everything is generated 
+                               by FormManager.java at runtime. 
+                            -->
+                        </GridPane>
+                    </content>
+                </ScrollPane>
+                
+                <!-- CRUD OPERATIONS: These buttons trigger the database actions -->
+                <HBox alignment="CENTER" spacing="15">
+                    <children>
+                        <Button onAction="#refreshData" styleClass="btn-refresh" text="Refresh" />
+                        <Button onAction="#clearForm" styleClass="btn-clear" text="Clear" />
+                        <!-- INSERT: Takes the data from the form and creates a new record -->
+                        <Button onAction="#handleSave" styleClass="btn-save" text="Insert" />
+                        <!-- UPDATE: Modifies the currently selected record in the table -->
+                        <Button onAction="#handleUpdate" styleClass="btn-update" text="Update" />
+                        <!-- DELETE: Permanently removes the selected record -->
+                        <Button onAction="#handleDelete" styleClass="btn-delete" text="Delete" />
+                    </children>
+                </HBox>
+            </children>
+        </VBox>
+    </items>
+</SplitPane>

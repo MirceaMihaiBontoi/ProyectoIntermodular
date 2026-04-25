@@ -1,17 +1,75 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import javafx.scene.layout.VBox?>
-<?import javafx.scene.control.Label?>
-<?import javafx.scene.control.Button?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.control.*?>
 <?import javafx.geometry.Insets?>
+<?import java.net.*?>
 
-<VBox alignment="CENTER" spacing="20.0" xmlns="http://javafx.com/javafx/8.0.171" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.reservas.app.controller.PrimaryController">
+<!-- 
+    VBox (Vertical Box): Everything inside this container will be stacked vertically.
+    fx:controller: Link this FXML to its corresponding Java class.
+-->
+<VBox alignment="CENTER" spacing="10.0" prefWidth="1100" prefHeight="700" xmlns="http://javafx.com/javafx/8.0.171" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.reservas.app.controller.PrimaryController">
+   <stylesheets>
+      <!-- We load our external CSS file for styling (colors, fonts, etc.) -->
+      <URL value="@style.css" />
+   </stylesheets>
    <children>
-      <Label text="Reservation Management System" style="-fx-font-size: 24px; -fx-font-weight: bold;" />
-      <Label text="Welcome to the administration panel" />
-      <Button fx:id="primaryButton" text="Enter Management" onAction="#switchToSecondary"/>
+      <!-- HBox (Horizontal Box): Items are placed side-by-side -->
+      <HBox alignment="CENTER_LEFT" spacing="15" styleClass="header-hbox">
+         <children>
+            <Label text="ADMIN DASHBOARD" style="-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: white;" />
+            <Region HBox.hgrow="ALWAYS" />
+            <Label fx:id="lblStatus" text="Connected to SQLite" style="-fx-text-fill: #bdc3c7;" />
+         </children>
+      </HBox>
+
+      <!-- 
+         SplitPane: Divides the window into two resizable parts. 
+         The 'dividerPositions' sets the initial split (70% left, 30% right).
+      -->
+      <SplitPane dividerPositions="0.7" VBox.vgrow="ALWAYS">
+        <items>
+          <!-- LEFT SIDE: TabPane for managing database tables -->
+          <AnchorPane>
+               <children>
+                  <!-- 
+                     TabPane: A container with tabs at the top.
+                     Each tab will represent a table in our database.
+                  -->
+                  <TabPane fx:id="mainTabPane" tabClosingPolicy="UNAVAILABLE" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+                     <tabs>
+                        <!-- 
+                           IMPORTANT: This area is empty because we populate 
+                           it via code in PrimaryController.java.
+                        -->
+                     </tabs>
+                  </TabPane>
+               </children>
+            </AnchorPane>
+
+          <!-- RIGHT SIDE: The SQL Console for direct database interaction -->
+          <VBox spacing="10" maxWidth="500" minWidth="250" style="-fx-padding: 10; -fx-background-color: #ecf0f1;">
+               <children>
+                  <Label text="SQL Console" style="-fx-font-size: 14px; -fx-font-weight: bold;" />
+                  <!-- TextArea: Multi-line text input for writing SQL queries -->
+                  <TextArea fx:id="sqlConsole" VBox.vgrow="ALWAYS" promptText="Enter SQL command..." style="-fx-font-family: 'Consolas', 'Monospace';" />
+                  <HBox spacing="5" alignment="CENTER">
+                     <children>
+                        <!-- onAction: Links the click event to a method in the controller -->
+                        <Button text="Execute" onAction="#executeSql" HBox.hgrow="ALWAYS" maxWidth="Infinity" style="-fx-background-color: #2c3e50; -fx-text-fill: white;" />
+                        <Button text="Reload" onAction="#reloadTabs" style="-fx-background-color: #95a5a6; -fx-text-fill: white;" />
+                     </children>
+                  </HBox>
+               </children>
+            </VBox>
+        </items>
+      </SplitPane>
+      
+      <HBox alignment="CENTER_RIGHT" spacing="10" style="-fx-padding: 5;">
+         <children>
+            <Button text="Exit Application" onAction="#exitApp" style="-fx-background-color: #e74c3c; -fx-text-fill: white;" />
+         </children>
+      </HBox>
    </children>
-   <padding>
-      <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
-   </padding>
 </VBox>

@@ -1,0 +1,115 @@
+/* 
+   CSS IN JAVAFX: 
+   - Uses the same syntax as web CSS (selectors, properties).
+   - Most properties start with '-fx-' (e.g., -fx-background-color).
+*/
+
+.root {
+    /* DEFAULT FONT: Set for the whole application */
+    -fx-font-family: "Segoe UI", Helvetica, Arial, sans-serif;
+    -fx-font-size: 13px;
+    
+    /* THEME VARIABLES: We define colors once so we can reuse them below */
+    -fx-primary: #3498db;
+    -fx-secondary: #2c3e50;
+    -fx-success: #27ae60;
+    -fx-warning: #f39c12;
+    -fx-danger: #c0392b;
+    -fx-neutral: #95a5a6;
+    -fx-bg: #f4f7f6;
+    -fx-border: #bdc3c7;
+}
+
+/* CLASS SELECTOR: Styles the HBox with the 'header-hbox' style class */
+.header-hbox {
+    -fx-background-color: -fx-secondary;
+    -fx-padding: 15;
+    /* DROPSHADOW: Adds a subtle 3D effect to the header */
+    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.3), 10, 0, 0, 5);
+}
+
+/* TABS: Styles the navigation bar at the top of the management area */
+.tab-pane .tab-header-area .tab-header-background { 
+    -fx-background-color: -fx-bg; 
+}
+.tab { 
+    -fx-background-color: #ecf0f1; 
+    -fx-background-radius: 5 5 0 0; /* Rounded top corners only */
+    -fx-padding: 5 15; 
+}
+.tab:selected { 
+    /* Highlighting the active tab */
+    -fx-background-color: -fx-primary; 
+}
+.tab:selected .tab-label { 
+    -fx-text-fill: white; 
+    -fx-font-weight: bold; 
+}
+
+/* TABLE: Styles for the data grid */
+.table-view { 
+    -fx-background-color: transparent; 
+    -fx-base: white; 
+    -fx-control-inner-background: white; 
+    -fx-table-cell-border-color: #f0f0f0; /* Very light grid lines */
+}
+.table-view .column-header-background { 
+    -fx-background-color: #ecf0f1; 
+}
+.table-view .column-header { 
+    -fx-background-color: transparent; 
+    -fx-padding: 10; 
+}
+.table-view .column-header .label { 
+    -fx-text-fill: -fx-secondary; 
+    -fx-font-weight: bold; 
+}
+
+/* FORMS: Styles for input fields and layout */
+.grid-pane { 
+    -fx-padding: 15; 
+}
+.text-field {
+    -fx-background-radius: 4;
+    -fx-border-radius: 4;
+    -fx-border-color: -fx-border;
+    -fx-background-color: white;
+}
+
+.combo-box {
+    -fx-background-radius: 4;
+    -fx-border-radius: 4;
+    -fx-border-color: -fx-border;
+    /* We use a different background to visually identify it as a clickable dropdown */
+    -fx-background-color: #f1f3f4; 
+}
+
+/* PSEUDO-CLASS: focused - When the user clicks or tabs into a field */
+.text-field:focused, .combo-box:focused { 
+    -fx-border-color: -fx-primary; 
+}
+
+/* BUTTONS: Global button styles and specific action colors */
+.button {
+    -fx-cursor: hand; /* Changes mouse pointer to a hand on hover */
+    -fx-font-weight: bold;
+    -fx-background-radius: 4;
+    -fx-padding: 8 16;
+    -fx-text-fill: white;
+}
+
+.btn-save { -fx-background-color: -fx-success; }
+/* HOVER EFFECT: Uses 'derive' to make the color 20% lighter when mouse is over */
+.btn-save:hover { -fx-background-color: derive(-fx-success, 20%); }
+
+.btn-update { -fx-background-color: -fx-warning; }
+.btn-update:hover { -fx-background-color: derive(-fx-warning, 20%); }
+
+.btn-delete { -fx-background-color: -fx-danger; }
+.btn-delete:hover { -fx-background-color: derive(-fx-danger, 20%); }
+
+.btn-refresh { -fx-background-color: -fx-primary; }
+.btn-refresh:hover { -fx-background-color: derive(-fx-primary, -15%); }
+
+.btn-clear { -fx-background-color: -fx-neutral; }
+.btn-clear:hover { -fx-background-color: derive(-fx-neutral, -10%); }

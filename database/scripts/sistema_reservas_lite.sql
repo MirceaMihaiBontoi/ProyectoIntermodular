@@ -40,6 +40,7 @@ CREATE TABLE usuarionormal (
 CREATE TABLE recurso (
     id_recurso INTEGER PRIMARY KEY,
     nombre TEXT NOT NULL,
+    tipo TEXT NOT NULL, -- Aula, Proyector, etc.
     descripcion TEXT,
     ubicacion TEXT,
     capacidad INTEGER
@@ -103,11 +104,11 @@ INSERT INTO usuarionormal VALUES (9, 'Calle Luna 4', '644444444', 'foto4.jpg');
 INSERT INTO usuarionormal VALUES (10, 'Calle Mar 5', NULL, NULL);
 
 -- RECURSO
-INSERT INTO recurso VALUES (1, 'Sala de reuniones A', 'Sala grande', 'Planta 1', 20);
-INSERT INTO recurso VALUES (2, 'Sala de reuniones B', 'Sala pequeña', 'Planta 1', 10);
-INSERT INTO recurso VALUES (3, 'Gimnasio', 'Zona deportiva', 'Planta 0', 50);
-INSERT INTO recurso VALUES (4, 'Pista de pádel', 'Exterior', 'Jardín', 4);
-INSERT INTO recurso VALUES (5, 'Sala de conferencias', 'Sala principal', 'Planta 2', 100);
+INSERT INTO recurso VALUES (1, 'Sala de reuniones A', 'Sala', 'Sala grande', 'Planta 1', 20);
+INSERT INTO recurso VALUES (2, 'Sala de reuniones B', 'Sala', 'Sala pequeña', 'Planta 1', 10);
+INSERT INTO recurso VALUES (3, 'Gimnasio', 'Deportes', 'Zona deportiva', 'Planta 0', 50);
+INSERT INTO recurso VALUES (4, 'Pista de pádel', 'Deportes', 'Exterior', 'Jardín', 4);
+INSERT INTO recurso VALUES (5, 'Sala de conferencias', 'Auditorio', 'Sala principal', 'Planta 2', 100);
 
 -- HORARIO
 INSERT INTO horario VALUES (1, 'Lunes', '09:00:00', '10:00:00');

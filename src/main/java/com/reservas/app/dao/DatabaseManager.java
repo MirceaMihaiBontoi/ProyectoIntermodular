@@ -1,77 +1,65 @@
 package com.reservas.app.dao;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+/**
+ * Singleton-like utility class to manage the SQLite database connection.
+ */
 public class DatabaseManager {
-    // Database file moved to 'database' folder for better organization
-    private static final String DB_DIR = "database";
-    private static final String DB_FILE = "sistema_reservas.db";
-    private static final String URL = "jdbc:sqlite:" + DB_DIR + "/" + DB_FILE;
-    private static final Logger logger = Logger.getLogger(DatabaseManager.class.getName());
 
     private DatabaseManager() {
         throw new IllegalStateException("Utility class");
     }
 
+    private static final String URL = "jdbc:sqlite:database/sistema_reservas.db";
+    private static final Logger logger = Logger.getLogger(DatabaseManager.class.getName());
+
+    /**
+     * Gets a new connection to the database.
+     * JDBC (Java Database Connectivity) is the standard Java API to interact with databases.
+     * DriverManager is the factory that creates the actual connection using the URL.
+     */
     public static Connection getConnection() throws SQLException {
         return DriverManager.getConnection(URL);
     }
 
+    /**
+     * Initializes the database by executing the SQL script if the database is empty.
+     * This is a "First Run" logic:
+     * 1. Check if the database has tables.
+     * 2. If not, read the .sql file as a String.
+     * 3. Split the script by semicolons (;) because JDBC Statement.execute() 
+     *    usually handles only one SQL command at a time.
+     */
     public static void initializeDatabase() {
-        try {
-            Path dirPath = Paths.get(DB_DIR);
-            Path filePath = dirPath.resolve(DB_FILE);
+        try (Connection conn = getConnection();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = conn.getMetaData().getTables(null, null, "usuario", null)) {
 
-            // Create directory if it doesn't exist
-            if (!Files.exists(dirPath)) {
-                Files.createDirectories(dirPath);
-                logger.info("Database directory created: " + DB_DIR);
-            }
+            // rs.next() returns true if there is at least one result (the 'usuario' table exists)
+            if (!rs.next()) {
+                logger.info("Database empty. Loading your script...");
+                String scriptPath = "database/scripts/sistema_reservas_lite.sql";
 
-            // Check if database file already exists
-            boolean dbExists = Files.exists(filePath);
+                // Files.readString is a modern Java way (Java 11+) to read a whole file into text
+                String content = java.nio.file.Files.readString(java.nio.file.Paths.get(scriptPath));
 
-            try (Connection conn = getConnection()) {
-                if (!dbExists) {
-                    logger.info("Database not found. Initializing new database...");
-                    executeInitializationScript(conn);
-                } else {
-                    logger.info("Database found. Skipping initialization.");
-                }
-            }
-        } catch (IOException | SQLException e) {
-            logger.log(Level.SEVERE, "CRITICAL: Database initialization failed", e);
-        }
-    }
-
-    private static void executeInitializationScript(Connection conn) {
-        String scriptPath = "database/scripts/sistema_reservas_lite.sql";
-        try {
-            /* Read script as bytes and split by semicolon to execute commands individually
-               SQLite JDBC doesn't support multiple SQL statements in a single executeUpdate() call
-            */
-            String content = new String(Files.readAllBytes(Paths.get(scriptPath)));
-            String[] commands = content.split(";");
-            
-            try (Statement stmt = conn.createStatement()) {
-                for (String command : commands) {
-                    if (!command.trim().isEmpty()) {
-                        stmt.execute(command);
+                // We split the script into individual SQL statements
+                for (String sql : content.split(";")) {
+                    if (!sql.trim().isEmpty()) {
+                        stmt.execute(sql);
                     }
                 }
-                logger.info("Database schema and seed data initialized successfully.");
+                logger.info("Schema and test data loaded successfully from script.");
             }
-        } catch (IOException | SQLException e) {
-            logger.log(Level.SEVERE, "CRITICAL: Failed to process or execute initialization script", e);
+        } catch (SQLException | java.io.IOException e) {
+            logger.log(Level.SEVERE, "Database initialization failed", e);
         }
     }
 }
