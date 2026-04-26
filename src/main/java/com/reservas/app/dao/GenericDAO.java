@@ -77,7 +77,11 @@ public class GenericDAO {
         String placeholders = data.keySet().stream().map(k -> "?").collect(Collectors.joining(", "));
         
         String sql = String.format("INSERT INTO %s (%s) VALUES (%s)", tableName, columns, placeholders);
-        executeUpdate(sql, data.values());
+        try {
+            executeUpdate(sql, data.values());
+        } catch (SQLException e) {
+            throw new SQLException("Error inserting into " + tableName + ". Data: " + data + ". " + e.getMessage(), e);
+        }
     }
 
     /**
@@ -94,7 +98,11 @@ public class GenericDAO {
         List<Object> params = new ArrayList<>(data.values());
         params.add(pkValue);
 
-        executeUpdate(sql, params);
+        try {
+            executeUpdate(sql, params);
+        } catch (SQLException e) {
+            throw new SQLException("Error updating " + tableName + " (PK: " + pkName + "=" + pkValue + "). Data: " + data + ". " + e.getMessage(), e);
+        }
     }
 
     /**

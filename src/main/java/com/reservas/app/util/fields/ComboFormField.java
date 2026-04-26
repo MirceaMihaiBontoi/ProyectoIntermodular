@@ -45,4 +45,17 @@ public class ComboFormField implements IFormField {
     public Control getControl() {
         return comboBox;
     }
+
+    /**
+     * Refreshes the items in the ComboBox with fresh data from the database.
+     */
+    public void refreshItems(List<String> newItems) {
+        String currentValue = comboBox.getValue();
+        comboBox.getItems().clear();
+        comboBox.getItems().addAll(newItems);
+        // Restore the previously selected value if it still exists
+        if (currentValue != null && newItems.contains(currentValue)) {
+            comboBox.setValue(currentValue);
+        }
+    }
 }

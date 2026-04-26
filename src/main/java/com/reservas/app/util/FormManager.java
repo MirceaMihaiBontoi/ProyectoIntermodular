@@ -3,6 +3,7 @@ package com.reservas.app.util;
 import com.reservas.app.dao.MetadataDAO;
 import com.reservas.app.model.ForeignKey;
 import com.reservas.app.util.fields.ComboFormField;
+import com.reservas.app.util.fields.DateFormField;
 import com.reservas.app.util.fields.IFormField;
 import com.reservas.app.util.fields.TextFormField;
 import javafx.scene.control.Label;
@@ -24,13 +25,15 @@ public class FormManager {
     private final GridPane form;
     private final List<String> columnNames;
     private final Map<String, ForeignKey> foreignKeys;
+    private final String tableName;
     // Polymorphic Map: Stores IFormField instead of specific controls
     private final Map<String, IFormField> fieldsMap = new HashMap<>();
 
-    public FormManager(GridPane form, List<String> columnNames, Map<String, ForeignKey> foreignKeys) {
+    public FormManager(GridPane form, List<String> columnNames, Map<String, ForeignKey> foreignKeys, String tableName) {
         this.form = form;
         this.columnNames = columnNames;
         this.foreignKeys = foreignKeys;
+        this.tableName = tableName;
     }
 
     /**
@@ -87,17 +90,34 @@ public class FormManager {
     /**
      * Internal Factory Method:
      * A "Factory" is a design pattern used to create objects.
-     * If the column is a Foreign Key (FK), we need a ComboBox (Dropdown) 
-     * so the user can select a valid ID from the related table.
-     * Otherwise, a normal TextFormField is enough.
+     * Priority order:
+     * 1. If the column is a Foreign Key (FK), we need a ComboBox (Dropdown)
+     * 2. If the column has allowed values (CHECK constraint), use ComboBox
+     * 3. If the column is a DATE type, we use a DatePicker
+     * 4. Otherwise, a normal TextFormField is enough.
      */
     private IFormField createField(String name) {
+        // Priority 1: Foreign Key - use ComboBox
         if (foreignKeys.containsKey(name)) {
             ForeignKey fk = foreignKeys.get(name);
             // We fetch the valid values from the parent table to populate the dropdown
             List<String> items = MetadataDAO.getAllRowsFromTable(fk.refTable(), fk.refColumn());
             return new ComboFormField(items);
         }
+        
+        // Priority 2: CHECK constraint with allowed values - use ComboBox
+        List<String> allowedValues = MetadataDAO.getAllowedValues(tableName, name);
+        if (allowedValues != null && !allowedValues.isEmpty()) {
+            return new ComboFormField(allowedValues);
+        }
+        
+        // Priority 3: DATE type - use DatePicker
+        String columnType = MetadataDAO.getColumnType(tableName, name);
+        if (columnType != null && columnType.equalsIgnoreCase("DATE")) {
+            return new DateFormField();
+        }
+        
+        // Priority 4: Default - use TextField
         return new TextFormField();
     }
 
@@ -132,5 +152,31 @@ public class FormManager {
      */
     public Map<String, Object> getAllValues() {
         return columnNames.stream().collect(Collectors.toMap(n -> n, this::getValue));
+    }
+
+    /**
+     * Refreshes all ComboBox fields with fresh data from the database.
+     * This is called after inserting/updating records to ensure dropdowns show the latest data.
+     * Refreshes both foreign key dropdowns and CHECK constraint dropdowns.
+     */
+    public void refreshCombos() {
+        for (String columnName : columnNames) {
+            IFormField field = fieldsMap.get(columnName);
+            if (field instanceof ComboFormField) {
+                // Refresh foreign key dropdowns
+                if (foreignKeys.containsKey(columnName)) {
+                    ForeignKey fk = foreignKeys.get(columnName);
+                    List<String> freshItems = MetadataDAO.getAllRowsFromTable(fk.refTable(), fk.refColumn());
+                    ((ComboFormField) field).refreshItems(freshItems);
+                }
+                // Refresh CHECK constraint dropdowns (allowed values don't change, but we refresh anyway for consistency)
+                else {
+                    List<String> allowedValues = MetadataDAO.getAllowedValues(tableName, columnName);
+                    if (allowedValues != null) {
+                        ((ComboFormField) field).refreshItems(allowedValues);
+                    }
+                }
+            }
+        }
     }
 }

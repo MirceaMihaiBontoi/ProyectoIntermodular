@@ -54,6 +54,38 @@ public class MetadataDAO {
     }
 
     /**
+     * Gets the data type of a specific column.
+     * Returns the SQL type name (e.g., "DATE", "INTEGER", "TEXT").
+     */
+    public static String getColumnType(String tableName, String columnName) {
+        try (Connection conn = DatabaseManager.getConnection();
+             ResultSet rs = conn.getMetaData().getColumns(null, null, tableName, columnName)) {
+            if (rs.next()) {
+                return rs.getString("TYPE_NAME");
+            }
+        } catch (SQLException e) {
+            logger.log(Level.SEVERE, "Failed to fetch column type for " + tableName + "." + columnName, e);
+        }
+        return "TEXT"; // Default to TEXT if type cannot be determined
+    }
+
+    /**
+     * Gets allowed values for a column with CHECK constraints.
+     * Currently hardcoded for known columns since SQLite doesn't expose CHECK constraints via JDBC metadata.
+     */
+    public static List<String> getAllowedValues(String tableName, String columnName) {
+        // Hardcoded for the tipo_usuario CHECK constraint in usuario table
+        if ("usuario".equals(tableName) && "tipo_usuario".equals(columnName)) {
+            return List.of("Administrador", "Normal");
+        }
+        // Hardcoded for the dia_semana CHECK constraint in horario table
+        if ("horario".equals(tableName) && "dia_semana".equals(columnName)) {
+            return List.of("Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo");
+        }
+        return null; // No known allowed values
+    }
+
+    /**
      * Finds the Primary Key (PK) of a table.
      */
     public static String getPrimaryKey(String tableName) {

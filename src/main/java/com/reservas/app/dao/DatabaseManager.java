@@ -24,9 +24,15 @@ public class DatabaseManager {
      * Gets a new connection to the database.
      * JDBC (Java Database Connectivity) is the standard Java API to interact with databases.
      * DriverManager is the factory that creates the actual connection using the URL.
+     * Note: SQLite requires explicit enabling of foreign keys via PRAGMA.
      */
     public static Connection getConnection() throws SQLException {
-        return DriverManager.getConnection(URL);
+        Connection conn = DriverManager.getConnection(URL);
+        // Enable foreign key constraints for this connection
+        try (Statement stmt = conn.createStatement()) {
+            stmt.execute("PRAGMA foreign_keys = ON");
+        }
+        return conn;
     }
 
     /**

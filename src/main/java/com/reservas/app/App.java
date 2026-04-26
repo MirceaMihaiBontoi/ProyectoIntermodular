@@ -31,7 +31,7 @@ public class App extends Application {
         // Load the main FXML layout and display it in the primary stage (window)
         Scene scene = new Scene(loadFXML("primary"), 1200, 800);
         stage.setScene(scene);
-        stage.setTitle("Hotel Management System - Dynamic DB Admin");
+        stage.setTitle("Sistemas Reservas");
         stage.show();
     }
 
