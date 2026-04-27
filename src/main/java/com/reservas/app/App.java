@@ -1,11 +1,12 @@
 package com.reservas.app;
 
+import com.reservas.app.dao.DatabaseManager;
+import com.reservas.app.web.WebServer;
 import javafx.application.Application;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
-import com.reservas.app.dao.DatabaseManager;
 import java.io.IOException;
 import java.util.logging.Logger;
 
@@ -26,12 +27,15 @@ public class App extends Application {
         // Initialize the database connection and schema before the UI starts
         DatabaseManager.initializeDatabase();
         
+        // Start the web server in a separate thread
+        new Thread(() -> WebServer.start(3000)).start();
+        
         logger.info("Application started.");
         
         // Load the main FXML layout and display it in the primary stage (window)
         Scene scene = new Scene(loadFXML("primary"), 1200, 800);
         stage.setScene(scene);
-        stage.setTitle("Sistemas Reservas");
+        stage.setTitle("Reservation System");
         stage.show();
     }
 
