@@ -1,7 +1,9 @@
 package com.reservas.app.dao;
 
+import com.reservas.app.util.PasswordHasher;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -42,30 +44,60 @@ public class DatabaseManager {
      * 2. If not, read the .sql file as a String.
      * 3. Split the script by semicolons (;) because JDBC Statement.execute() 
      *    usually handles only one SQL command at a time.
+     * 4. Hash all plain text passwords after loading the script.
      */
     public static void initializeDatabase() {
         try (Connection conn = getConnection();
              Statement stmt = conn.createStatement();
              ResultSet rs = conn.getMetaData().getTables(null, null, "usuario", null)) {
 
-            // rs.next() returns true if there is at least one result (the 'usuario' table exists)
             if (!rs.next()) {
                 logger.info("Database empty. Loading your script...");
                 String scriptPath = "database/scripts/sistema_reservas_lite.sql";
-
-                // Files.readString is a modern Java way (Java 11+) to read a whole file into text
                 String content = java.nio.file.Files.readString(java.nio.file.Paths.get(scriptPath));
 
-                // We split the script into individual SQL statements
                 for (String sql : content.split(";")) {
                     if (!sql.trim().isEmpty()) {
                         stmt.execute(sql);
                     }
                 }
                 logger.info("Schema and test data loaded successfully from script.");
+                
+                // Hash all passwords in usuario table
+                hashPasswordsInDatabase(conn);
             }
         } catch (SQLException | java.io.IOException e) {
             logger.log(Level.SEVERE, "Database initialization failed", e);
         }
+    }
+
+    /**
+     * Hashes all plain text passwords in the usuario table after initial data load.
+     */
+    private static void hashPasswordsInDatabase(Connection conn) throws SQLException {
+        logger.info("Hashing passwords in usuario table...");
+        
+        try (Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery("SELECT id_usuario, contrasena FROM usuario")) {
+            
+            while (rs.next()) {
+                int userId = rs.getInt("id_usuario");
+                String plainPassword = rs.getString("contrasena");
+                
+                // Only hash if not already hashed (BCrypt hashes start with $2a$ or $2b$)
+                if (plainPassword != null && !plainPassword.startsWith("$2")) {
+                    String hashedPassword = PasswordHasher.hashPassword(plainPassword);
+                    
+                    try (PreparedStatement pstmt = conn.prepareStatement(
+                        "UPDATE usuario SET contrasena = ? WHERE id_usuario = ?")) {
+                        pstmt.setString(1, hashedPassword);
+                        pstmt.setInt(2, userId);
+                        pstmt.executeUpdate();
+                    }
+                }
+            }
+        }
+        
+        logger.info("Passwords hashed successfully.");
     }
 }

@@ -55,6 +55,8 @@ class UsuarioDAOTest {
              ResultSet rs = stmt.executeQuery("SELECT * FROM usuario WHERE id_usuario = " + TEST_USER_ID)) {
             assertTrue(rs.next(), "Usuario should be created");
             assertEquals("Administrador", rs.getString("tipo_usuario"));
+            // Password should be hashed (not plain text)
+            assertNotEquals("admin123", rs.getString("contrasena"), "Password should be hashed");
         }
 
         // Verify administrador record was created
@@ -93,6 +95,8 @@ class UsuarioDAOTest {
              ResultSet rs = stmt.executeQuery("SELECT * FROM usuario WHERE id_usuario = " + TEST_USER_ID)) {
             assertTrue(rs.next(), "Usuario should be created");
             assertEquals("Normal", rs.getString("tipo_usuario"));
+            // Password should be hashed
+            assertNotEquals("normal123", rs.getString("contrasena"), "Password should be hashed");
         }
 
         // Verify usuarionormal record was created
@@ -110,6 +114,26 @@ class UsuarioDAOTest {
                 assertEquals(0, rs.getInt(1), "Administrador record should NOT be created for Normal user");
             }
         }
+    }
+
+    @Test
+    void testVerifyPassword() throws SQLException {
+        Map<String, Object> userData = new HashMap<>();
+        userData.put("id_usuario", TEST_USER_ID);
+        userData.put("correo_electronico", "test@test.com");
+        userData.put("contrasena", "test123");
+        userData.put("nombre", "Test User");
+        userData.put("fecha_nacimiento", "1990-01-01");
+        userData.put("tipo_usuario", "Normal");
+        UsuarioDAO.insertWithCascade(userData);
+
+        // Verify correct password
+        assertTrue(UsuarioDAO.verifyPassword(TEST_USER_ID, "test123"), 
+            "Should verify correct password");
+
+        // Verify incorrect password
+        assertFalse(UsuarioDAO.verifyPassword(TEST_USER_ID, "wrongpassword"), 
+            "Should reject incorrect password");
     }
 
     @Test
@@ -218,6 +242,32 @@ class UsuarioDAOTest {
                 assertEquals(1, rs.getInt(1), "UsuarioNormal should be created after type change");
             }
         }
+    }
+
+    @Test
+    void testUpdatePassword() throws SQLException {
+        Map<String, Object> userData = new HashMap<>();
+        userData.put("id_usuario", TEST_USER_ID);
+        userData.put("correo_electronico", "test@test.com");
+        userData.put("contrasena", "oldpassword");
+        userData.put("nombre", "Test User");
+        userData.put("fecha_nacimiento", "1990-01-01");
+        userData.put("tipo_usuario", "Normal");
+        UsuarioDAO.insertWithCascade(userData);
+
+        // Verify old password works
+        assertTrue(UsuarioDAO.verifyPassword(TEST_USER_ID, "oldpassword"));
+
+        // Update password
+        Map<String, Object> updateData = new HashMap<>();
+        updateData.put("contrasena", "newpassword");
+        UsuarioDAO.updateWithCascade("id_usuario", TEST_USER_ID, updateData);
+
+        // Verify old password no longer works
+        assertFalse(UsuarioDAO.verifyPassword(TEST_USER_ID, "oldpassword"));
+
+        // Verify new password works
+        assertTrue(UsuarioDAO.verifyPassword(TEST_USER_ID, "newpassword"));
     }
 
     @Test

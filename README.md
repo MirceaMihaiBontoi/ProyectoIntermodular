@@ -7,6 +7,7 @@ Dynamic JavaFX CRUD application for reservation management with SQLite database.
 - Dynamic interface automatically generated from database schema
 - Full CRUD operations support (Create, Read, Update, Delete)
 - Data type validation (dates with DatePicker, dropdowns for enums)
+- Password hashing with BCrypt for secure password storage
 - Foreign keys enabled with CASCADE in SQLite
 - Integrated SQL console with support for multiple operations
 - Automatic data and dropdown refresh across all tabs
@@ -60,6 +61,13 @@ The SQL console supports multiple operations separated by semicolons:
 - ON DELETE CASCADE and ON UPDATE CASCADE are handled at the database level
 - For the usuario table, a record is automatically created in `administrador` or `usuarionormal` based on user type
 - User type changes manage migration between child tables
+
+## Security
+
+- Passwords are automatically hashed using BCrypt before storage
+- BCrypt uses salt and is designed for password hashing (not for general encryption)
+- Passwords cannot be retrieved in plain text, only verified
+- Use `UsuarioDAO.verifyPassword(userId, plainPassword)` to verify credentials
 
 ## Tests
 

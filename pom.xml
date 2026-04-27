@@ -26,6 +26,12 @@
             <artifactId>sqlite-jdbc</artifactId>
             <version>3.42.0.0</version>
         </dependency>
+        <!-- BCrypt for password hashing -->
+        <dependency>
+            <groupId>org.mindrot</groupId>
+            <artifactId>jbcrypt</artifactId>
+            <version>0.4</version>
+        </dependency>
         <!-- JUnit 5 for testing -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
@@ -48,6 +54,9 @@
                 <version>3.8.1</version>
                 <configuration>
                     <release>17</release>
+                    <compilerArgs>
+                        <arg>--add-reads=com.reservas.app=ALL-UNNAMED</arg>
+                    </compilerArgs>
                 </configuration>
             </plugin>
             <plugin>
@@ -64,6 +73,8 @@
                             <options>
                                 <option>--enable-native-access=javafx.graphics</option>
                                 <option>--enable-native-access=ALL-UNNAMED</option>
+                                <option>--add-reads=com.reservas.app=ALL-UNNAMED</option>
+                                <option>--add-opens=com.reservas.app/com.reservas.app.util=ALL-UNNAMED</option>
                             </options>
                         </configuration>
                     </execution>
