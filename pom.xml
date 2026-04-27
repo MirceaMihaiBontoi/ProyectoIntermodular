@@ -32,6 +32,18 @@
             <artifactId>jbcrypt</artifactId>
             <version>0.4</version>
         </dependency>
+        <!-- Javalin for web server -->
+        <dependency>
+            <groupId>io.javalin</groupId>
+            <artifactId>javalin</artifactId>
+            <version>5.6.3</version>
+        </dependency>
+        <!-- Gson for JSON serialization -->
+        <dependency>
+            <groupId>com.google.code.gson</groupId>
+            <artifactId>gson</artifactId>
+            <version>2.10.1</version>
+        </dependency>
         <!-- JUnit 5 for testing -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
@@ -56,6 +68,7 @@
                     <release>17</release>
                     <compilerArgs>
                         <arg>--add-reads=com.reservas.app=ALL-UNNAMED</arg>
+                        <arg>--add-opens=com.reservas.app/com.reservas.app=ALL-UNNAMED</arg>
                     </compilerArgs>
                 </configuration>
             </plugin>

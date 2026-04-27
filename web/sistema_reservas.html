@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reservation System - Staff</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Reservation System</h1>
+            <p>Staff Panel - Reservation Management</p>
+        </div>
+
+        <div class="nav">
+            <button class="active" onclick="showSection('reservas')">Reservations</button>
+            <button onclick="showSection('nueva-reserva')">New Reservation</button>
+            <button onclick="showSection('usuarios')">Users</button>
+            <button onclick="showSection('recursos')">Resources</button>
+        </div>
+
+        <div class="content">
+            <!-- Reservations Section -->
+            <div id="reservas" class="section active">
+                <div class="search-box">
+                    <input type="text" id="searchReservas" placeholder="Search reservations..." onkeyup="filterReservas()">
+                </div>
+                <div id="reservasLoading" class="loading">Loading reservations...</div>
+                <div id="reservasError" class="error" style="display: none;"></div>
+                <div id="reservasSuccess" class="success" style="display: none;"></div>
+                <table class="table" id="reservasTable" style="display: none;">
+                    <thead>
+                        <tr>
+                            <th>Resource</th>
+                            <th>User</th>
+                            <th>Date</th>
+                            <th>Time</th>
+                            <th>Reason</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="reservasBody"></tbody>
+                </table>
+            </div>
+
+            <!-- New Reservation Section -->
+            <div id="nueva-reserva" class="section">
+                <div class="card">
+                    <h3>Create New Reservation</h3>
+                    <form id="reservaForm">
+                        <div class="form-group">
+                            <label for="recurso">Resource</label>
+                            <select id="recurso" required>
+                                <option value="">Select resource...</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="usuario">User</label>
+                            <select id="usuario" required>
+                                <option value="">Select user...</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="fecha">Date</label>
+                            <input type="date" id="fecha" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="horaInicio">Start Time</label>
+                            <input type="time" id="horaInicio" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="horaFin">End Time</label>
+                            <input type="time" id="horaFin" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="motivo">Reason</label>
+                            <textarea id="motivo" rows="3" required></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Create Reservation</button>
+                    </form>
+                </div>
+                <div id="reservaError" class="error" style="display: none;"></div>
+                <div id="reservaSuccess" class="success" style="display: none;"></div>
+            </div>
+
+            <!-- Users Section -->
+            <div id="usuarios" class="section">
+                <div class="search-box">
+                    <input type="text" id="searchUsuarios" placeholder="Search users..." onkeyup="filterUsuarios()">
+                </div>
+                <div id="usuariosLoading" class="loading">Loading users...</div>
+                <div id="usuariosError" class="error" style="display: none;"></div>
+                <div id="usuariosGrid" class="grid" style="display: none;"></div>
+            </div>
+
+            <!-- Resources Section -->
+            <div id="recursos" class="section">
+                <div class="search-box">
+                    <input type="text" id="searchRecursos" placeholder="Search resources..." onkeyup="filterRecursos()">
+                </div>
+                <div id="recursosLoading" class="loading">Loading resources...</div>
+                <div id="recursosError" class="error" style="display: none;"></div>
+                <div id="recursosGrid" class="grid" style="display: none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8080/api';
+        let reservasData = [];
+        let usuariosData = [];
+        let recursosData = [];
+
+        // Navigation
+        function showSection(sectionId) {
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
+            
+            document.getElementById(sectionId).classList.add('active');
+            event.target.classList.add('active');
+
+            if (sectionId === 'reservas') loadReservas();
+            if (sectionId === 'nueva-reserva') loadFormData();
+            if (sectionId === 'usuarios') loadUsuarios();
+            if (sectionId === 'recursos') loadRecursos();
+        }
+
+        // Load Reservas
+        async function loadReservas() {
+            const loading = document.getElementById('reservasLoading');
+            const error = document.getElementById('reservasError');
+            const table = document.getElementById('reservasTable');
+
+            loading.style.display = 'block';
+            error.style.display = 'none';
+            table.style.display = 'none';
+
+            try {
+                const response = await fetch(`${API_BASE}/reservas`);
+                reservasData = await response.json();
+                
+                renderReservas(reservasData);
+                loading.style.display = 'none';
+                table.style.display = 'table';
+            } catch (e) {
+                error.textContent = 'Error al cargar reservas: ' + e.message;
+                error.style.display = 'block';
+                loading.style.display = 'none';
+            }
+        }
+
+        function renderReservas(reservas) {
+            const tbody = document.getElementById('reservasBody');
+            tbody.innerHTML = reservas.map(r => `
+                <tr>
+                    <td>${r.id_recurso}</td>
+                    <td>${r.id_usuario}</td>
+                    <td>${r.fecha}</td>
+                    <td>${r.hora_inicio} - ${r.hora_fin}</td>
+                    <td>${r.motivo || '-'}</td>
+                    <td>
+                        <button class="btn btn-danger" onclick="cancelReserva('${r.id_recurso}', '${r.id_reserva_local}')">Cancel</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function filterReservas() {
+            const search = document.getElementById('searchReservas').value.toLowerCase();
+            const filtered = reservasData.filter(r => 
+                r.motivo?.toLowerCase().includes(search) ||
+                r.fecha?.includes(search) ||
+                r.id_usuario.toString().includes(search)
+            );
+            renderReservas(filtered);
+        }
+
+        async function cancelReserva(idRecurso, idReservaLocal) {
+            if (!confirm('Are you sure you want to cancel this reservation?')) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/reservas/${idRecurso}/${idReservaLocal}`, {
+                    method: 'DELETE'
+                });
+                
+                if (response.ok) {
+                    showSuccess('reservas', 'Reservation cancelled successfully');
+                    loadReservas();
+                } else {
+                    showError('reservas', 'Error cancelling reservation');
+                }
+            } catch (e) {
+                showError('reservas', 'Error: ' + e.message);
+            }
+        }
+
+        // Load Form Data
+        async function loadFormData() {
+            try {
+                const [recursos, usuarios] = await Promise.all([
+                    fetch(`${API_BASE}/recursos`).then(r => r.json()),
+                    fetch(`${API_BASE}/usuarios`).then(r => r.json())
+                ]);
+
+                const recursoSelect = document.getElementById('recurso');
+                recursoSelect.innerHTML = '<option value="">Select resource...</option>' +
+                    recursos.map(r => `<option value="${r.id_recurso}">${r.nombre} (${r.tipo})</option>`).join('');
+
+                const usuarioSelect = document.getElementById('usuario');
+                usuarioSelect.innerHTML = '<option value="">Select user...</option>' +
+                    usuarios.map(u => `<option value="${u.id_usuario}">${u.nombre} (${u.correo_electronico})</option>`).join('');
+            } catch (e) {
+                showError('reserva', 'Error loading form data');
+            }
+        }
+
+        // Create Reservation
+        document.getElementById('reservaForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const data = {
+                id_recurso: parseInt(document.getElementById('recurso').value),
+                id_reserva_local: Date.now(), // Simple ID generation
+                id_usuario: parseInt(document.getElementById('usuario').value),
+                fecha: document.getElementById('fecha').value,
+                hora_inicio: document.getElementById('horaInicio').value + ':00',
+                hora_fin: document.getElementById('horaFin').value + ':00',
+                motivo: document.getElementById('motivo').value
+            };
+
+            try {
+                const response = await fetch(`${API_BASE}/reservas`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                if (response.ok) {
+                    showSuccess('reserva', 'Reservation created successfully');
+                    document.getElementById('reservaForm').reset();
+                } else {
+                    showError('reserva', 'Error creating reservation');
+                }
+            } catch (e) {
+                showError('reserva', 'Error: ' + e.message);
+            }
+        });
+
+        // Load Users
+        async function loadUsuarios() {
+            const loading = document.getElementById('usuariosLoading');
+            const error = document.getElementById('usuariosError');
+            const grid = document.getElementById('usuariosGrid');
+
+            loading.style.display = 'block';
+            error.style.display = 'none';
+            grid.style.display = 'none';
+
+            try {
+                const response = await fetch(`${API_BASE}/usuarios`);
+                usuariosData = await response.json();
+                
+                renderUsuarios(usuariosData);
+                loading.style.display = 'none';
+                grid.style.display = 'grid';
+            } catch (e) {
+                error.textContent = 'Error loading users: ' + e.message;
+                error.style.display = 'block';
+                loading.style.display = 'none';
+            }
+        }
+
+        function renderUsuarios(usuarios) {
+            const grid = document.getElementById('usuariosGrid');
+            grid.innerHTML = usuarios.map(u => `
+                <div class="user-card">
+                    <h4>${u.nombre}</h4>
+                    <p><strong>Email:</strong> ${u.correo_electronico}</p>
+                    <p><strong>Type:</strong> <span class="badge ${u.tipo_usuario === 'Administrador' ? 'badge-admin' : 'badge-normal'}">${u.tipo_usuario}</span></p>
+                    <p><strong>Birth Date:</strong> ${u.fecha_nacimiento || '-'}</p>
+                </div>
+            `).join('');
+        }
+
+        function filterUsuarios() {
+            const search = document.getElementById('searchUsuarios').value.toLowerCase();
+            const filtered = usuariosData.filter(u => 
+                u.nombre.toLowerCase().includes(search) ||
+                u.correo_electronico.toLowerCase().includes(search)
+            );
+            renderUsuarios(filtered);
+        }
+
+        // Load Resources
+        async function loadRecursos() {
+            const loading = document.getElementById('recursosLoading');
+            const error = document.getElementById('recursosError');
+            const grid = document.getElementById('recursosGrid');
+
+            loading.style.display = 'block';
+            error.style.display = 'none';
+            grid.style.display = 'none';
+
+            try {
+                const response = await fetch(`${API_BASE}/recursos`);
+                recursosData = await response.json();
+                
+                renderRecursos(recursosData);
+                loading.style.display = 'none';
+                grid.style.display = 'grid';
+            } catch (e) {
+                error.textContent = 'Error loading resources: ' + e.message;
+                error.style.display = 'block';
+                loading.style.display = 'none';
+            }
+        }
+
+        function renderRecursos(recursos) {
+            const grid = document.getElementById('recursosGrid');
+            grid.innerHTML = recursos.map(r => `
+                <div class="resource-card">
+                    <h4>${r.nombre}</h4>
+                    <p><strong>Type:</strong> ${r.tipo}</p>
+                    <p><strong>Description:</strong> ${r.descripcion || '-'}</p>
+                    <p><strong>Location:</strong> ${r.ubicacion || '-'}</p>
+                    <p><strong>Capacity:</strong> ${r.capacidad || '-'}</p>
+                </div>
+            `).join('');
+        }
+
+        function filterRecursos() {
+            const search = document.getElementById('searchRecursos').value.toLowerCase();
+            const filtered = recursosData.filter(r => 
+                r.nombre.toLowerCase().includes(search) ||
+                r.tipo.toLowerCase().includes(search)
+            );
+            renderRecursos(filtered);
+        }
+
+        // Utility functions
+        function showError(section, message) {
+            const error = document.getElementById(section + 'Error');
+            error.textContent = message;
+            error.style.display = 'block';
+            setTimeout(() => error.style.display = 'none', 5000);
+        }
+
+        function showSuccess(section, message) {
+            const success = document.getElementById(section + 'Success');
+            success.textContent = message;
+            success.style.display = 'block';
+            setTimeout(() => success.style.display = 'none', 5000);
+        }
+
+        // Initial load
+        loadReservas();
+    </script>
+</body>
+</html>
