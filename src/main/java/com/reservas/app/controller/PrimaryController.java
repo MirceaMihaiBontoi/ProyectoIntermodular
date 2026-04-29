@@ -1,9 +1,11 @@
 package com.reservas.app.controller;
 
+import com.reservas.app.dao.GenericDAO;
 import com.reservas.app.dao.MetadataDAO;
 import com.reservas.app.util.DialogHelper;
 import com.reservas.app.web.WebServer;
 import javafx.application.Platform;
+import java.awt.Desktop;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
@@ -26,39 +28,22 @@ import java.util.logging.Logger;
 public class PrimaryController {
 
     private static final Logger logger = Logger.getLogger(PrimaryController.class.getName());
-    private static PrimaryController instance;
 
     @FXML
     private TabPane mainTabPane;
     @FXML
     private TextArea sqlConsole;
-    @FXML
-    private VBox sidebar;
 
     /**
      * The initialize method is automatically called by JavaFX after the FXML is loaded.
-     * It's like a constructor for the UI.
      */
     @FXML
     public void initialize() {
-        setInstance(this);
         reloadTabs();
-    }
-
-    private static void setInstance(PrimaryController controller) {
-        instance = controller;
-    }
-
-    /**
-     * Returns the singleton instance of PrimaryController for external access.
-     */
-    public static PrimaryController getInstance() {
-        return instance;
     }
 
     /**
      * Refreshes all ComboBox dropdowns across all tabs.
-     * This ensures that when new records are added in one tab, they appear in dropdowns of other tabs.
      */
     public void refreshAllCombos() {
         for (Tab tab : mainTabPane.getTabs()) {
@@ -71,7 +56,6 @@ public class PrimaryController {
 
     /**
      * Refreshes all table data across all tabs.
-     * This ensures that when CASCADE deletes occur, all affected tabs show updated data.
      */
     public void refreshAllData() {
         for (Tab tab : mainTabPane.getTabs()) {
@@ -88,32 +72,30 @@ public class PrimaryController {
      * This is the CORE of the dynamic UI:
      * 1. Ask the database for all table names.
      * 2. For each table, create a new Tab.
-     * 3. Load the 'dynamic_table.fxml' into that tab.
-     * 4. Assign a controller to manage the data of that specific table.
      */
     @FXML
     private void reloadTabs() {
-        // Clear existing tabs to avoid duplicates if we reload
         mainTabPane.getTabs().clear();
         List<String> tables = MetadataDAO.getTableNames();
 
         for (String tableName : tables) {
             try {
-                // FXMLLoader is used to load UI layouts from .fxml files
                 FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/reservas/app/dynamic_table.fxml"));
                 Parent root = loader.load();
                 
-                // We get the controller of the loaded FXML to initialize it with the table name
                 DynamicTableController controller = loader.getController();
                 controller.init(tableName);
-                controller.setPrimaryController(this); // Set reference for global refresh
+                // Instead of passing 'this', we pass the specific refresh methods to avoid tight coupling
+                controller.setOnDataChange(() -> {
+                    refreshAllData();
+                    refreshAllCombos();
+                });
                 
-                // Fun logic: if a table has 2+ Foreign Keys, it's likely a relationship table (junction)
                 boolean isJunction = MetadataDAO.getForeignKeys(tableName).size() >= 2;
                 String title = (isJunction ? "🔗 " : "") + tableName.toUpperCase();
                 
                 Tab tab = new Tab(title, root);
-                tab.setUserData(controller); // Store controller reference for later access
+                tab.setUserData(controller);
                 mainTabPane.getTabs().add(tab);
             } catch (IOException e) {
                 logger.log(Level.SEVERE, e, () -> "Error loading tab: " + tableName);
@@ -123,8 +105,6 @@ public class PrimaryController {
 
     /**
      * Executing SQL from the text area in the app.
-     * This allows you to run commands like 'DROP TABLE' or 'UPDATE' manually.
-     * Supports multiple statements separated by semicolons.
      */
     @FXML
     private void executeSql() {
@@ -132,84 +112,44 @@ public class PrimaryController {
         if (sql.isEmpty()) return;
 
         try {
-            // Split SQL by semicolon and execute each statement
-            SqlExecutionResult result = executeSqlStatements(sql);
-            
-            if (result.hasResults()) {
-                showResultsTab(result.getResultsContainer());
-            } else {
-                DialogHelper.showInfo("SQL Executed", "Statement executed successfully.");
-            }
+            VBox resultsContainer = new VBox(10);
+            boolean hasSchemaChange = false;
+            boolean hasResults = false;
 
+            String[] statements = sql.split(";");
+            for (String statement : statements) {
+                statement = statement.trim();
+                if (statement.isEmpty()) continue;
+
+                if (statement.toUpperCase().startsWith("SELECT")) {
+                    resultsContainer.getChildren().add(buildSqlResultTable(statement));
+                    hasResults = true;
+                } else {
+                    int affected = GenericDAO.executeRawUpdate(statement);
+                    Label label = new Label(statement.substring(0, Math.min(40, statement.length())) + "... → " + affected + " row(s) affected");
+                    label.setStyle("-fx-font-weight: bold; -fx-text-fill: #2e7d32;");
+                    resultsContainer.getChildren().add(label);
+                    if (isSchemaChange(statement)) hasSchemaChange = true;
+                    hasResults = true;
+                }
+            }
+            
+            if (hasResults) showResultsTab(resultsContainer);
+            
             refreshAllData();
             refreshAllCombos();
+            if (hasSchemaChange) reloadTabs();
             
-            if (result.hasSchemaChange()) {
-                reloadTabs();
-            }
-
             sqlConsole.clear();
         } catch (SQLException e) {
             DialogHelper.showError("SQL Error", e.getMessage());
         }
     }
 
-    private SqlExecutionResult executeSqlStatements(String sql) throws SQLException {
-        String[] statements = sql.split(";");
-        VBox resultsContainer = new VBox(10);
-        boolean hasSelect = false;
-        boolean hasSchemaChange = false;
+    private Node buildSqlResultTable(String sql) throws SQLException {
+        TableView<ObservableList<String>> tableView = new TableView<>();
+        tableView.setPrefHeight(200);
 
-        for (String statement : statements) {
-            statement = statement.trim();
-            if (statement.isEmpty()) continue;
-
-            String upper = statement.toUpperCase();
-            if (upper.startsWith("SELECT")) {
-                hasSelect = true;
-                resultsContainer.getChildren().add(executeSelectQuery(statement));
-            } else {
-                int affectedRows = executeNonQuery(statement);
-                Label resultLabel = new Label(statement.substring(0, Math.min(50, statement.length())) + "... → " + affectedRows + " fila(s) afectada(s)");
-                resultLabel.setStyle("-fx-font-weight: bold; -fx-text-fill: #2e7d32;");
-                resultsContainer.getChildren().add(resultLabel);
-                if (isSchemaChange(statement)) {
-                    hasSchemaChange = true;
-                }
-            }
-        }
-
-        return new SqlExecutionResult(resultsContainer, hasSelect, hasSchemaChange);
-    }
-
-    private static class SqlExecutionResult {
-        private final VBox resultsContainer;
-        private final boolean hasSelect;
-        private final boolean hasSchemaChange;
-
-        SqlExecutionResult(VBox resultsContainer, boolean hasSelect, boolean hasSchemaChange) {
-            this.resultsContainer = resultsContainer;
-            this.hasSelect = hasSelect;
-            this.hasSchemaChange = hasSchemaChange;
-        }
-
-        boolean hasResults() {
-            return hasSelect || !resultsContainer.getChildren().isEmpty();
-        }
-
-        VBox getResultsContainer() {
-            return resultsContainer;
-        }
-
-        boolean hasSchemaChange() {
-            return hasSchemaChange;
-        }
-    }
-
-    /**
-     * Executes a SELECT query and returns a TableView with results.
-     */
-    private Node executeSelectQuery(String sql) throws SQLException {
         try (Connection conn = com.reservas.app.dao.DatabaseManager.getConnection();
              Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
@@ -217,11 +157,6 @@ public class PrimaryController {
             ResultSetMetaData metaData = rs.getMetaData();
             int columnCount = metaData.getColumnCount();
 
-            // Create TableView
-            TableView<ObservableList<String>> tableView = new TableView<>();
-            tableView.setPrefHeight(200);
-
-            // Create columns
             for (int i = 1; i <= columnCount; i++) {
                 final int colIndex = i;
                 TableColumn<ObservableList<String>, String> column = new TableColumn<>(metaData.getColumnName(i));
@@ -229,7 +164,6 @@ public class PrimaryController {
                 tableView.getColumns().add(column);
             }
 
-            // Add data
             ObservableList<ObservableList<String>> data = FXCollections.observableArrayList();
             while (rs.next()) {
                 ObservableList<String> row = FXCollections.observableArrayList();
@@ -239,48 +173,27 @@ public class PrimaryController {
                 data.add(row);
             }
             tableView.setItems(data);
-
-            // Wrap in VBox with SQL statement label
-            VBox container = new VBox(5);
-            Label sqlLabel = new Label(sql);
-            sqlLabel.setStyle("-fx-font-family: monospace; -fx-font-size: 11px; -fx-text-fill: #666;");
-            container.getChildren().addAll(sqlLabel, tableView);
-            return container;
         }
+
+        VBox container = new VBox(5);
+        Label sqlLabel = new Label(sql);
+        sqlLabel.setStyle("-fx-font-family: monospace; -fx-font-size: 11px; -fx-text-fill: #666;");
+        container.getChildren().addAll(sqlLabel, tableView);
+        return container;
     }
 
-    /**
-     * Executes a non-SELECT query (INSERT, UPDATE, DELETE, etc.) and returns affected rows.
-     */
-    private int executeNonQuery(String sql) throws SQLException {
-        try (Connection conn = com.reservas.app.dao.DatabaseManager.getConnection();
-             Statement stmt = conn.createStatement()) {
-            return stmt.executeUpdate(sql);
-        }
-    }
-
-    /**
-     * Shows results in a temporary tab.
-     */
     private void showResultsTab(Node content) {
-        // Check if SQL Results tab already exists
-        Tab existingTab = null;
-        for (Tab tab : mainTabPane.getTabs()) {
-            if (tab.getText().equals("📊 SQL Results")) {
-                existingTab = tab;
-                break;
-            }
-        }
-
-        if (existingTab != null) {
-            existingTab.setContent(content);
-            mainTabPane.getSelectionModel().select(existingTab);
-        } else {
-            Tab resultTab = new Tab("📊 SQL Results", content);
-            resultTab.setClosable(true);
-            mainTabPane.getTabs().add(resultTab);
-            mainTabPane.getSelectionModel().select(resultTab);
-        }
+        Tab resultTab = mainTabPane.getTabs().stream()
+                .filter(t -> "📊 SQL Results".equals(t.getText()))
+                .findFirst()
+                .orElseGet(() -> {
+                    Tab t = new Tab("📊 SQL Results");
+                    t.setClosable(true);
+                    mainTabPane.getTabs().add(t);
+                    return t;
+                });
+        resultTab.setContent(content);
+        mainTabPane.getSelectionModel().select(resultTab);
     }
 
     private boolean isSchemaChange(String sql) {
@@ -288,36 +201,27 @@ public class PrimaryController {
         return upper.startsWith("CREATE") || upper.startsWith("DROP") || upper.startsWith("ALTER");
     }
 
-    /**
-     * Clean way to close a JavaFX application.
-     */
     @FXML
     private void exitApp() {
-        logger.info("Application closing via exit button, stopping web server...");
+        logger.info("Application closing...");
         WebServer.stop();
         Platform.exit();
-        System.exit(0); // Force exit
     }
 
-    /**
-     * Opens the web interface in the default browser.
-     */
     @FXML
     private void openWebInterface() {
+        String url = "http://localhost:3000";
         try {
-            // Use ProcessBuilder to open browser without requiring java.desktop module
-            String os = System.getProperty("os.name").toLowerCase();
-            String url = "http://localhost:3000";
-            
-            if (os.contains("win")) {
-                new ProcessBuilder("cmd", "/c", "start", url).start();
-            } else if (os.contains("mac")) {
-                new ProcessBuilder("open", url).start();
+            if (java.awt.Desktop.isDesktopSupported()) {
+                java.awt.Desktop.getDesktop().browse(new java.net.URI(url));
             } else {
-                new ProcessBuilder("xdg-open", url).start();
+                String os = System.getProperty("os.name").toLowerCase();
+                if (os.contains("win")) new ProcessBuilder("cmd", "/c", "start", url).start();
+                else if (os.contains("mac")) new ProcessBuilder("open", url).start();
+                else new ProcessBuilder("xdg-open", url).start();
             }
         } catch (Exception e) {
-            DialogHelper.showError("Error", "Could not open web interface: " + e.getMessage());
+            DialogHelper.showError("Error", "Could not open browser: " + e.getMessage());
         }
     }
 }

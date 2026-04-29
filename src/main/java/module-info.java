@@ -4,6 +4,7 @@ module com.reservas.app {
     requires javafx.fxml;                // Needed to load layouts from .fxml files.
     requires transitive java.sql;        // Needed to connect to the SQLite database.
     requires java.logging;               // Needed for logging events.
+    requires java.desktop;               // Needed for java.awt.Desktop (browser opening).
     
     // Web, JSON and Security dependencies
     requires io.javalin;

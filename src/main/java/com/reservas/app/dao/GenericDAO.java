@@ -177,11 +177,12 @@ public class GenericDAO {
 
     /**
      * Executes a raw SQL statement (used by the text console in the app).
+     * Returns the number of affected rows.
      */
-    public static void executeRawSql(String sql) throws SQLException {
+    public static int executeRawUpdate(String sql) throws SQLException {
         try (Connection conn = DatabaseManager.getConnection();
              Statement stmt = conn.createStatement()) {
-            stmt.executeUpdate(sql);
+            return stmt.executeUpdate(sql);
         }
     }
 }

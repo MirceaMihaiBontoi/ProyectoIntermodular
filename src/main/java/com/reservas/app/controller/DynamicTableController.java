@@ -2,7 +2,6 @@ package com.reservas.app.controller;
 
 import com.reservas.app.dao.GenericDAO;
 import com.reservas.app.dao.MetadataDAO;
-import com.reservas.app.dao.UsuarioDAO;
 import com.reservas.app.util.DialogHelper;
 import com.reservas.app.util.FormManager;
 import com.reservas.app.util.TableManager;
@@ -20,31 +19,25 @@ import java.util.List;
  */
 public class DynamicTableController {
 
-    // FXML annotations link these variables to the UI elements in dynamic_table.fxml
     @FXML private TableView<ObservableList<StringProperty>> dynamicTable;
     @FXML private GridPane dynamicForm;
 
-    private static final String USUARIO_TABLE = "usuario";
     private String tableName;
     private List<String> columnNames;
     private FormManager formManager;
     private List<Object> selectedPkValues;
-    private PrimaryController primaryController;
+    private Runnable onDataChange;
 
     /**
      * Entry point for this controller, called manually by PrimaryController.
      */
     public void init(String tableName) {
         this.tableName = tableName;
-        
-        // 1. Get metadata from the DB
         this.columnNames = MetadataDAO.getColumnNames(tableName);
         
-        // 2. Setup the Form Manager (controls the input fields)
         this.formManager = new FormManager(dynamicForm, columnNames, MetadataDAO.getForeignKeys(tableName), tableName);
         formManager.build();
 
-        // 3. Setup the Table Manager (controls columns and selection)
         new TableManager(dynamicTable, columnNames).build(values -> {
             formManager.fill(values);
             List<String> pkNames = MetadataDAO.getPrimaryKeys(tableName);
@@ -53,15 +46,14 @@ public class DynamicTableController {
                 .toList();
         });
         
-        // 4. Initial data load
         refreshData();
     }
 
     /**
-     * Sets the reference to the primary controller for global refresh operations.
+     * Sets the callback to be executed when data changes (insert/update/delete).
      */
-    public void setPrimaryController(PrimaryController primaryController) {
-        this.primaryController = primaryController;
+    public void setOnDataChange(Runnable onDataChange) {
+        this.onDataChange = onDataChange;
     }
 
     /**
@@ -76,21 +68,10 @@ public class DynamicTableController {
         selectedPkValues = null;
     }
 
-    /**
-     * Patterns: Action -> Feedback -> Cleanup
-     */
     @FXML private void handleSave() {
-        // Special handling for usuario table with cascade logic
-        if (USUARIO_TABLE.equals(tableName)) {
-            DialogHelper.doDbAction(() -> UsuarioDAO.insertWithCascade(formManager.getAllValues()),
-                "Record inserted successfully!",
-                () -> { refreshAllData(); refreshAllCombos(); clearForm(); });
-        } else {
-            // Standard insert for other tables
-            DialogHelper.doDbAction(() -> GenericDAO.insert(tableName, formManager.getAllValues()),
-                "Record inserted successfully!",
-                () -> { refreshAllData(); refreshAllCombos(); clearForm(); });
-        }
+        DialogHelper.doDbAction(() -> com.reservas.app.dao.DAOProvider.insert(tableName, formManager.getAllValues()),
+            "Record inserted successfully!",
+            this::notifyDataChange);
     }
 
     @FXML private void handleUpdate() {
@@ -104,17 +85,9 @@ public class DynamicTableController {
             return;
         }
 
-        // Special handling for usuario table with cascade logic
-        if (USUARIO_TABLE.equals(tableName)) {
-            DialogHelper.doDbAction(() -> UsuarioDAO.updateWithCascade(pks, selectedPkValues, formManager.getAllValues()),
-                "Record updated!",
-                () -> { refreshAllData(); refreshAllCombos(); });
-        } else {
-            // Standard update for other tables
-            DialogHelper.doDbAction(() -> GenericDAO.update(tableName, pks, selectedPkValues, formManager.getAllValues()),
-                "Record updated!",
-                () -> { refreshAllData(); refreshAllCombos(); });
-        }
+        DialogHelper.doDbAction(() -> com.reservas.app.dao.DAOProvider.update(tableName, pks, selectedPkValues, formManager.getAllValues()),
+            "Record updated!",
+            this::notifyDataChange);
     }
 
     @FXML private void handleDelete() {
@@ -122,45 +95,20 @@ public class DynamicTableController {
         if (pks.isEmpty() || selectedPkValues == null) return;
 
         if (DialogHelper.showConfirmation("Confirm Deletion", "Are you sure you want to delete this record?")) {
-            // Special handling for usuario table with cascade logic
-            if (USUARIO_TABLE.equals(tableName)) {
-                DialogHelper.doDbAction(() -> UsuarioDAO.deleteWithCascade(pks, selectedPkValues),
-                    null,
-                    () -> { refreshAllData(); refreshAllCombos(); clearForm(); });
-            } else {
-                // Standard delete for other tables
-                DialogHelper.doDbAction(() -> GenericDAO.delete(tableName, pks, selectedPkValues),
-                    null,
-                    () -> { refreshAllData(); refreshAllCombos(); clearForm(); });
-            }
+            DialogHelper.doDbAction(() -> com.reservas.app.dao.DAOProvider.delete(tableName, pks, selectedPkValues),
+                null,
+                this::notifyDataChange);
         }
     }
 
-    /**
-     * Refreshes all ComboBox dropdowns with fresh data from the database.
-     * This ensures that when new records are added (e.g., new users), they appear in dropdowns.
-     */
+    private void notifyDataChange() {
+        if (onDataChange != null) {
+            onDataChange.run();
+        }
+        clearForm();
+    }
+
     public void refreshCombos() {
         formManager.refreshCombos();
-    }
-
-    /**
-     * Refreshes all ComboBox dropdowns across all tabs globally.
-     * This ensures that when new records are added in one tab, they appear in dropdowns of other tabs.
-     */
-    private void refreshAllCombos() {
-        if (primaryController != null) {
-            primaryController.refreshAllCombos();
-        }
-    }
-
-    /**
-     * Refreshes all table data across all tabs globally.
-     * This ensures that when CASCADE deletes occur, all affected tabs show updated data.
-     */
-    private void refreshAllData() {
-        if (primaryController != null) {
-            primaryController.refreshAllData();
-        }
     }
 }

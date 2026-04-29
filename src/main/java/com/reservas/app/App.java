@@ -29,6 +29,8 @@ public class App extends Application {
     private static final String APP_TITLE = "Reservation System";
     private static final String PRIMARY_FXML = "primary";
 
+    private PrimaryController primaryController;
+
     /**
      * Initializes the application and UI.
      * @param stage The primary stage for this application.
@@ -39,18 +41,19 @@ public class App extends Application {
             // 1. Core Services Initialization
             DatabaseManager.initializeDatabase();
             
-            // 2. Start Web Server and register UI refresh callback
+            // 2. UI Setup (must be done before registering callbacks that depend on it)
+            setupUI(stage);
+            
+            // 3. Start Web Server and register UI refresh callback
             startWebServer();
             WebServer.setOnDataChange(() -> {
-                PrimaryController controller = PrimaryController.getInstance();
-                if (controller != null) {
-                    controller.refreshAllData();
-                    controller.refreshAllCombos();
+                if (primaryController != null) {
+                    Platform.runLater(() -> {
+                        primaryController.refreshAllData();
+                        primaryController.refreshAllCombos();
+                    });
                 }
             });
-            
-            // 3. UI Setup
-            setupUI(stage);
             
             logger.info("Application started successfully.");
         } catch (Exception e) {
@@ -74,7 +77,11 @@ public class App extends Application {
      * Configures the primary stage and loads the initial scene.
      */
     private void setupUI(Stage stage) throws IOException {
-        Scene scene = new Scene(loadFXML(PRIMARY_FXML), WINDOW_WIDTH, WINDOW_HEIGHT);
+        FXMLLoader loader = new FXMLLoader(App.class.getResource("/com/reservas/app/" + PRIMARY_FXML + ".fxml"));
+        Parent root = loader.load();
+        this.primaryController = loader.getController();
+
+        Scene scene = new Scene(root, WINDOW_WIDTH, WINDOW_HEIGHT);
         stage.setScene(scene);
         stage.setTitle(APP_TITLE);
         
