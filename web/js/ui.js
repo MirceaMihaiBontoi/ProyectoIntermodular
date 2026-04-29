@@ -69,7 +69,13 @@ export const UI = {
     setLoadingState(section, isLoading) {
         const ui = this.getSectionUI(section);
         if (ui.loading) ui.loading.style.display = isLoading ? 'block' : 'none';
-        if (ui.display) ui.display.style.display = isLoading ? 'none' : (ui.display.tagName === 'TABLE' ? 'table' : 'grid');
+        if (ui.display) {
+            let displayStyle = 'none';
+            if (!isLoading) {
+                displayStyle = ui.display.tagName === 'TABLE' ? 'table' : 'grid';
+            }
+            ui.display.style.display = displayStyle;
+        }
         if (ui.error) ui.error.style.display = 'none';
     },
 

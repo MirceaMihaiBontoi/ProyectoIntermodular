@@ -149,10 +149,10 @@ class GenericDAOTest {
     }
 
     @Test
-    void testExecuteRawSql() throws SQLException {
+    void testExecuteRawUpdate() throws SQLException {
         // Execute raw SQL
         String sql = "INSERT INTO recurso (id_recurso, nombre, tipo, descripcion, ubicacion, capacidad) VALUES (996, 'RAW SQL TEST', 'RAW', 'Raw SQL insert', 'Raw location', 20)";
-        GenericDAO.executeRawSql(sql);
+        GenericDAO.executeRawUpdate(sql);
 
         // Verify execution
         try (Connection conn = DatabaseManager.getConnection();

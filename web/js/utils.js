@@ -12,7 +12,7 @@ export const utils = {
 
     log(message, type = 'info') {
         const icons = { info: 'ℹ️', success: '✅', error: '❌', warn: '⚠️' };
-        if (window.location.hostname === 'localhost') {
+        if (globalThis.location.hostname === 'localhost') {
             console[type === 'success' ? 'log' : type](`${icons[type] || ''} ${message}`);
         }
     }

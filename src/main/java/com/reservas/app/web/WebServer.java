@@ -11,6 +11,7 @@ import io.javalin.http.Context;
 import io.javalin.http.staticfiles.Location;
 import io.javalin.json.JavalinGson;
 import io.javalin.websocket.WsContext;
+import static io.javalin.apibuilder.ApiBuilder.*;
 
 import com.google.gson.reflect.TypeToken;
 import java.sql.Connection;
@@ -56,19 +57,35 @@ public class WebServer {
     public static void start(int port) {
         try {
             app = Javalin.create(config -> {
-                config.staticFiles.add("web", Location.EXTERNAL);
-                config.jsonMapper(new JavalinGson(gson));
-            });
+                config.staticFiles.add(staticFiles -> {
+                    staticFiles.directory = "web";
+                    staticFiles.location = Location.EXTERNAL;
+                });
+                config.jsonMapper(new JavalinGson(gson, false));
+                
+                // Routing in Javalin 7 using config.routes and ApiBuilder
+                config.routes.apiBuilder(() -> {
+                    get("/", ctx -> ctx.redirect("/sistema_reservas.html"));
+                    
+                    path("api", () -> {
+                        get("reservas", WebServer::getReservas);
+                        post("reservas", WebServer::createReserva);
+                        delete("reservas/{id_recurso}/{id_reserva_local}", WebServer::deleteReserva);
 
-            app.ws("/ws", ws -> {
-                ws.onConnect(ctx -> clients.add(ctx));
-                ws.onClose(ctx -> clients.remove(ctx));
-                ws.onMessage(ctx -> logger.info("WS Message received: " + ctx.message()));
+                        get("usuarios", WebServer::getUsuarios);
+                        get("recursos", WebServer::getRecursos);
+                        get("horarios", WebServer::getHorarios);
+                    });
+
+                    ws("ws", ws -> {
+                        ws.onConnect(ctx -> clients.add(ctx));
+                        ws.onClose(ctx -> clients.remove(ctx));
+                        ws.onMessage(ctx -> logger.info("WS Message received: " + ctx.message()));
+                    });
+                });
             });
 
             app.start(port);
-
-            setupEndpoints();
             logger.log(Level.INFO, "Web server started on http://localhost:{0}", port);
         } catch (Exception e) {
             logger.log(Level.SEVERE, "Failed to start web server: {0}", e.getMessage());
@@ -76,17 +93,7 @@ public class WebServer {
     }
 
     private static void setupEndpoints() {
-        app.get("/", ctx -> ctx.redirect("/sistema_reservas.html"));
-        
-        // Reservations
-        app.get("/api/reservas", WebServer::getReservas);
-        app.post("/api/reservas", WebServer::createReserva);
-        app.delete("/api/reservas/{id_recurso}/{id_reserva_local}", WebServer::deleteReserva);
-
-        // Metadata / Read-only
-        app.get("/api/usuarios", WebServer::getUsuarios);
-        app.get("/api/recursos", WebServer::getRecursos);
-        app.get("/api/horarios", WebServer::getHorarios);
+        // Obsolete in Javalin 7 as routes must be defined in config block
     }
 
     private static void getReservas(Context ctx) {

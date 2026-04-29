@@ -1,6 +1,5 @@
 import { ApiService } from './api.js';
 import { UI } from './ui.js';
-import { utils } from './utils.js';
 import { WebSocketService } from './ws.js';
 
 /**
@@ -64,7 +63,7 @@ const App = {
                     this.state.reservas = await ApiService.getReservas();
                     UI.renderReservas(this.state.reservas);
                     break;
-                case 'nueva-reserva':
+                case 'nueva-reserva': {
                     const [recursos, usuarios] = await Promise.all([
                         ApiService.getRecursos(),
                         ApiService.getUsuarios()
@@ -72,6 +71,7 @@ const App = {
                     UI.populateSelect('recurso', recursos, 'id_recurso', 'nombre', 'tipo');
                     UI.populateSelect('usuario', usuarios, 'id_usuario', 'nombre', 'correo_electronico');
                     break;
+                }
                 case 'usuarios':
                     this.state.usuarios = await ApiService.getUsuarios();
                     UI.renderUsuarios(this.state.usuarios);
