@@ -21,7 +21,7 @@ body {
 }
 
 .header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #4338ca 0%, #5b21b6 100%);
     color: white;
     padding: 30px;
     text-align: center;
@@ -33,7 +33,7 @@ body {
 }
 
 .header p {
-    opacity: 0.9;
+    opacity: 1;
     font-size: 1.1em;
 }
 
@@ -61,8 +61,8 @@ body {
 
 .nav button.active {
     background: white;
-    color: #667eea;
-    border-bottom: 3px solid #667eea;
+    color: #4338ca;
+    border-bottom: 3px solid #4338ca;
 }
 
 .content {
@@ -117,14 +117,14 @@ body {
 }
 
 .btn-primary {
-    background: #667eea;
+    background: #4338ca;
     color: white;
 }
 
 .btn-primary:hover {
-    background: #5568d3;
+    background: #3730a3;
     transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+    box-shadow: 0 5px 15px rgba(67, 56, 202, 0.4);
 }
 
 .btn-danger {
@@ -226,7 +226,7 @@ body {
 }
 
 .resource-card h4 {
-    color: #667eea;
+    color: #4338ca;
     margin-bottom: 10px;
 }
 
@@ -245,7 +245,7 @@ body {
 }
 
 .user-card h4 {
-    color: #667eea;
+    color: #4338ca;
     margin-bottom: 10px;
 }
 
@@ -258,11 +258,11 @@ body {
 }
 
 .badge-admin {
-    background: #667eea;
+    background: #4338ca;
     color: white;
 }
 
 .badge-normal {
-    background: #28a745;
+    background: #15803d;
     color: white;
 }

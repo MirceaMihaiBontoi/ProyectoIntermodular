@@ -9,6 +9,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -66,7 +67,7 @@ class CascadeDeleteTest {
         }
 
         // Delete usuario
-        GenericDAO.delete("usuario", "id_usuario", TEST_USER_ID);
+        GenericDAO.delete("usuario", List.of("id_usuario"), List.of(TEST_USER_ID));
 
         // Verify administrador was deleted by CASCADE
         try (Connection conn = DatabaseManager.getConnection();
@@ -100,7 +101,7 @@ class CascadeDeleteTest {
         }
 
         // Delete usuario
-        GenericDAO.delete("usuario", "id_usuario", TEST_USER_ID);
+        GenericDAO.delete("usuario", List.of("id_usuario"), List.of(TEST_USER_ID));
 
         // Verify usuarionormal was deleted by CASCADE
         try (Connection conn = DatabaseManager.getConnection();
@@ -148,7 +149,7 @@ class CascadeDeleteTest {
         }
 
         // Delete horario
-        GenericDAO.delete("horario", "id_horario", TEST_HORARIO_ID);
+        GenericDAO.delete("horario", List.of("id_horario"), List.of(TEST_HORARIO_ID));
 
         // Verify disponibleen was deleted by CASCADE
         try (Connection conn = DatabaseManager.getConnection();
@@ -196,7 +197,7 @@ class CascadeDeleteTest {
         }
 
         // Delete recurso
-        GenericDAO.delete("recurso", "id_recurso", TEST_RECURSO_ID);
+        GenericDAO.delete("recurso", List.of("id_recurso"), List.of(TEST_RECURSO_ID));
 
         // Verify disponibleen was deleted by CASCADE
         try (Connection conn = DatabaseManager.getConnection();
@@ -253,7 +254,7 @@ class CascadeDeleteTest {
         }
 
         // Delete usuarionormal (should cascade to reserva)
-        GenericDAO.delete("usuarionormal", "id_usuario", TEST_USER_ID);
+        GenericDAO.delete("usuarionormal", List.of("id_usuario"), List.of(TEST_USER_ID));
 
         // Verify reserva was deleted by CASCADE
         try (Connection conn = DatabaseManager.getConnection();

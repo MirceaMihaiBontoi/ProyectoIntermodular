@@ -1,248 +1,163 @@
-const API_BASE = 'http://localhost:3000/api';
-let reservasData = [];
-let usuariosData = [];
-let recursosData = [];
+import { ApiService } from './api.js';
+import { UI } from './ui.js';
+import { utils } from './utils.js';
+import { WebSocketService } from './ws.js';
 
-// Navigation
-function showSection(sectionId) {
-    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-    document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
-    
-    document.getElementById(sectionId).classList.add('active');
-    event.target.classList.add('active');
+/**
+ * Main Application Controller
+ */
+const App = {
+    state: {
+        reservas: [],
+        usuarios: [],
+        recursos: [],
+        activeSection: 'reservas'
+    },
 
-    if (sectionId === 'reservas') loadReservas();
-    if (sectionId === 'nueva-reserva') loadFormData();
-    if (sectionId === 'usuarios') loadUsuarios();
-    if (sectionId === 'recursos') loadRecursos();
-}
-
-// Load Reservas
-async function loadReservas() {
-    const loading = document.getElementById('reservasLoading');
-    const error = document.getElementById('reservasError');
-    const table = document.getElementById('reservasTable');
-
-    loading.style.display = 'block';
-    error.style.display = 'none';
-    table.style.display = 'none';
-
-    try {
-        const response = await fetch(`${API_BASE}/reservas`);
-        reservasData = await response.json();
+    async init() {
+        this.ws = new WebSocketService(() => this.refreshActiveSection());
+        this.ws.init();
         
-        renderReservas(reservasData);
-        loading.style.display = 'none';
-        table.style.display = 'table';
-    } catch (e) {
-        error.textContent = 'Error loading reservations: ' + e.message;
-        error.style.display = 'block';
-        loading.style.display = 'none';
-    }
-}
+        this.bindEvents();
+        this.showSection('reservas');
+    },
 
-function renderReservas(reservas) {
-    const tbody = document.getElementById('reservasBody');
-    tbody.innerHTML = reservas.map(r => `
-        <tr>
-            <td>${r.id_recurso}</td>
-            <td>${r.id_usuario}</td>
-            <td>${r.fecha}</td>
-            <td>${r.hora_inicio} - ${r.hora_fin}</td>
-            <td>${r.motivo || '-'}</td>
-            <td>
-                <button class="btn btn-danger" onclick="cancelReserva('${r.id_recurso}', '${r.id_reserva_local}')">Cancel</button>
-            </td>
-        </tr>
-    `).join('');
-}
-
-function filterReservas() {
-    const search = document.getElementById('searchReservas').value.toLowerCase();
-    const filtered = reservasData.filter(r => 
-        r.motivo?.toLowerCase().includes(search) ||
-        r.fecha?.includes(search) ||
-        r.id_usuario.toString().includes(search)
-    );
-    renderReservas(filtered);
-}
-
-async function cancelReserva(idRecurso, idReservaLocal) {
-    if (!confirm('Are you sure you want to cancel this reservation?')) return;
-
-    try {
-        const response = await fetch(`${API_BASE}/reservas/${idRecurso}/${idReservaLocal}`, {
-            method: 'DELETE'
-        });
-        
-        if (response.ok) {
-            showSuccess('reservas', 'Reservation cancelled successfully');
-            loadReservas();
-        } else {
-            showError('reservas', 'Error cancelling reservation');
-        }
-    } catch (e) {
-        showError('reservas', 'Error: ' + e.message);
-    }
-}
-
-// Load Form Data
-async function loadFormData() {
-    try {
-        const [recursos, usuarios] = await Promise.all([
-            fetch(`${API_BASE}/recursos`).then(r => r.json()),
-            fetch(`${API_BASE}/usuarios`).then(r => r.json())
-        ]);
-
-        const recursoSelect = document.getElementById('recurso');
-        recursoSelect.innerHTML = '<option value="">Select resource...</option>' +
-            recursos.map(r => `<option value="${r.id_recurso}">${r.nombre} (${r.tipo})</option>`).join('');
-
-        const usuarioSelect = document.getElementById('usuario');
-        usuarioSelect.innerHTML = '<option value="">Select user...</option>' +
-            usuarios.map(u => `<option value="${u.id_usuario}">${u.nombre} (${u.correo_electronico})</option>`).join('');
-    } catch (e) {
-        showError('reserva', 'Error loading form data');
-    }
-}
-
-// Create Reservation
-document.getElementById('reservaForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-
-    const data = {
-        id_recurso: parseInt(document.getElementById('recurso').value),
-        id_reserva_local: Date.now(), // Simple ID generation
-        id_usuario: parseInt(document.getElementById('usuario').value),
-        fecha: document.getElementById('fecha').value,
-        hora_inicio: document.getElementById('horaInicio').value + ':00',
-        hora_fin: document.getElementById('horaFin').value + ':00',
-        motivo: document.getElementById('motivo').value
-    };
-
-    try {
-        const response = await fetch(`${API_BASE}/reservas`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
+    bindEvents() {
+        // Navigation
+        document.getElementById('mainNav').addEventListener('click', (e) => {
+            const btn = e.target.closest('.nav-btn');
+            if (btn) this.showSection(btn.dataset.section);
         });
 
-        if (response.ok) {
-            showSuccess('reserva', 'Reservation created successfully');
-            document.getElementById('reservaForm').reset();
-        } else {
-            showError('reserva', 'Error creating reservation');
+        // Search
+        document.getElementById('searchReservas').addEventListener('input', () => this.handleFilter('reservas'));
+        document.getElementById('searchUsuarios').addEventListener('input', () => this.handleFilter('usuarios'));
+        document.getElementById('searchRecursos').addEventListener('input', () => this.handleFilter('recursos'));
+
+        // Form
+        document.getElementById('reservaForm').addEventListener('submit', (e) => this.handleReservaSubmit(e));
+
+        // Table Delegation
+        document.getElementById('reservasBody').addEventListener('click', (e) => {
+            const cancelBtn = e.target.closest('.btn-cancel-reserva');
+            if (cancelBtn) {
+                const { recurso, local } = cancelBtn.dataset;
+                this.handleCancelReserva(recurso, local);
+            }
+        });
+    },
+
+    async showSection(sectionId) {
+        this.state.activeSection = sectionId;
+        
+        document.querySelectorAll('.section').forEach(s => s.classList.toggle('active', s.id === sectionId));
+        document.querySelectorAll('.nav-btn').forEach(b => b.classList.toggle('active', b.dataset.section === sectionId));
+        
+        await this.loadSectionData(sectionId);
+    },
+
+    async loadSectionData(sectionId) {
+        UI.setLoadingState(sectionId, true);
+        try {
+            switch (sectionId) {
+                case 'reservas':
+                    this.state.reservas = await ApiService.getReservas();
+                    UI.renderReservas(this.state.reservas);
+                    break;
+                case 'nueva-reserva':
+                    const [recursos, usuarios] = await Promise.all([
+                        ApiService.getRecursos(),
+                        ApiService.getUsuarios()
+                    ]);
+                    UI.populateSelect('recurso', recursos, 'id_recurso', 'nombre', 'tipo');
+                    UI.populateSelect('usuario', usuarios, 'id_usuario', 'nombre', 'correo_electronico');
+                    break;
+                case 'usuarios':
+                    this.state.usuarios = await ApiService.getUsuarios();
+                    UI.renderUsuarios(this.state.usuarios);
+                    break;
+                case 'recursos':
+                    this.state.recursos = await ApiService.getRecursos();
+                    UI.renderRecursos(this.state.recursos);
+                    break;
+            }
+            UI.setLoadingState(sectionId, false);
+        } catch (e) {
+            UI.showError(sectionId, `Failed to load ${sectionId}: ${e.message}`);
         }
-    } catch (e) {
-        showError('reserva', 'Error: ' + e.message);
-    }
-});
+    },
 
-// Load Users
-async function loadUsuarios() {
-    const loading = document.getElementById('usuariosLoading');
-    const error = document.getElementById('usuariosError');
-    const grid = document.getElementById('usuariosGrid');
+    refreshActiveSection() {
+        this.loadSectionData(this.state.activeSection);
+    },
 
-    loading.style.display = 'block';
-    error.style.display = 'none';
-    grid.style.display = 'none';
-
-    try {
-        const response = await fetch(`${API_BASE}/usuarios`);
-        usuariosData = await response.json();
+    handleFilter(type) {
+        const search = document.getElementById(`search${type.charAt(0).toUpperCase() + type.slice(1)}`).value.toLowerCase();
+        let filtered = [];
         
-        renderUsuarios(usuariosData);
-        loading.style.display = 'none';
-        grid.style.display = 'grid';
-    } catch (e) {
-        error.textContent = 'Error loading users: ' + e.message;
-        error.style.display = 'block';
-        loading.style.display = 'none';
+        if (type === 'reservas') {
+            filtered = this.state.reservas.filter(r => 
+                r.motivo?.toLowerCase().includes(search) || 
+                r.fecha?.includes(search) || 
+                String(r.id_usuario).includes(search)
+            );
+            UI.renderReservas(filtered);
+        } else if (type === 'usuarios') {
+            filtered = this.state.usuarios.filter(u => 
+                u.nombre.toLowerCase().includes(search) || 
+                u.correo_electronico.toLowerCase().includes(search)
+            );
+            UI.renderUsuarios(filtered);
+        } else if (type === 'recursos') {
+            filtered = this.state.recursos.filter(r => 
+                r.nombre.toLowerCase().includes(search) || 
+                r.tipo.toLowerCase().includes(search)
+            );
+            UI.renderRecursos(filtered);
+        }
+    },
+
+    async handleReservaSubmit(e) {
+        e.preventDefault();
+        const data = {
+            id_recurso: Number.parseInt(document.getElementById('recurso').value, 10),
+            id_usuario: Number.parseInt(document.getElementById('usuario').value, 10),
+            fecha: document.getElementById('fecha').value,
+            hora_inicio: document.getElementById('horaInicio').value + ':00',
+            hora_fin: document.getElementById('horaFin').value + ':00',
+            motivo: document.getElementById('motivo').value
+        };
+
+        try {
+            const response = await ApiService.createReserva(data);
+            if (response.ok) {
+                UI.showFeedback('reserva', 'Reservation created!', 'success');
+                e.target.reset();
+                if (this.state.activeSection === 'reservas') this.loadSectionData('reservas');
+            } else {
+                const err = await response.json();
+                UI.showError('reserva', err.error || 'Creation failed');
+            }
+        } catch (e) {
+            UI.showError('reserva', e.message);
+        }
+    },
+
+    async handleCancelReserva(idRecurso, idReservaLocal) {
+        if (!confirm('Cancel this reservation?')) return;
+        try {
+            const response = await ApiService.deleteReserva(idRecurso, idReservaLocal);
+            if (response.ok) {
+                UI.showFeedback('reservas', 'Cancelled!', 'success');
+                this.loadSectionData('reservas');
+            } else {
+                UI.showError('reservas', 'Delete failed');
+            }
+        } catch (e) {
+            UI.showError('reservas', e.message);
+        }
     }
-}
+};
 
-function renderUsuarios(usuarios) {
-    const grid = document.getElementById('usuariosGrid');
-    grid.innerHTML = usuarios.map(u => `
-        <div class="user-card">
-            <h4>${u.nombre}</h4>
-            <p><strong>Email:</strong> ${u.correo_electronico}</p>
-            <p><strong>Type:</strong> <span class="badge ${u.tipo_usuario === 'Administrador' ? 'badge-admin' : 'badge-normal'}">${u.tipo_usuario}</span></p>
-            <p><strong>Birth Date:</strong> ${u.fecha_nacimiento || '-'}</p>
-        </div>
-    `).join('');
-}
-
-function filterUsuarios() {
-    const search = document.getElementById('searchUsuarios').value.toLowerCase();
-    const filtered = usuariosData.filter(u => 
-        u.nombre.toLowerCase().includes(search) ||
-        u.correo_electronico.toLowerCase().includes(search)
-    );
-    renderUsuarios(filtered);
-}
-
-// Load Resources
-async function loadRecursos() {
-    const loading = document.getElementById('recursosLoading');
-    const error = document.getElementById('recursosError');
-    const grid = document.getElementById('recursosGrid');
-
-    loading.style.display = 'block';
-    error.style.display = 'none';
-    grid.style.display = 'none';
-
-    try {
-        const response = await fetch(`${API_BASE}/recursos`);
-        recursosData = await response.json();
-        
-        renderRecursos(recursosData);
-        loading.style.display = 'none';
-        grid.style.display = 'grid';
-    } catch (e) {
-        error.textContent = 'Error loading resources: ' + e.message;
-        error.style.display = 'block';
-        loading.style.display = 'none';
-    }
-}
-
-function renderRecursos(recursos) {
-    const grid = document.getElementById('recursosGrid');
-    grid.innerHTML = recursos.map(r => `
-        <div class="resource-card">
-            <h4>${r.nombre}</h4>
-            <p><strong>Type:</strong> ${r.tipo}</p>
-            <p><strong>Description:</strong> ${r.descripcion || '-'}</p>
-            <p><strong>Location:</strong> ${r.ubicacion || '-'}</p>
-            <p><strong>Capacity:</strong> ${r.capacidad || '-'}</p>
-        </div>
-    `).join('');
-}
-
-function filterRecursos() {
-    const search = document.getElementById('searchRecursos').value.toLowerCase();
-    const filtered = recursosData.filter(r => 
-        r.nombre.toLowerCase().includes(search) ||
-        r.tipo.toLowerCase().includes(search)
-    );
-    renderRecursos(filtered);
-}
-
-// Utility functions
-function showError(section, message) {
-    const error = document.getElementById(section + 'Error');
-    error.textContent = message;
-    error.style.display = 'block';
-    setTimeout(() => error.style.display = 'none', 5000);
-}
-
-function showSuccess(section, message) {
-    const success = document.getElementById(section + 'Success');
-    success.textContent = message;
-    success.style.display = 'block';
-    setTimeout(() => success.style.display = 'none', 5000);
-}
-
-// Initial load
-loadReservas();
+// Application Boot
+document.addEventListener('DOMContentLoaded', () => App.init());

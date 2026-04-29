@@ -56,7 +56,37 @@ public class GenericDAO {
                 data.add(row);
             }
         } catch (SQLException e) {
-            logger.log(Level.SEVERE, "Failed to fetch data from " + tableName, e);
+            logger.log(Level.SEVERE, e, () -> "Failed to fetch data from " + tableName);
+        }
+        return data;
+    }
+
+    /**
+     * Fetches all rows from a table and returns them as a List of Maps.
+     * This method is suitable for web APIs and non-JavaFX contexts.
+     */
+    public static List<Map<String, Object>> fetchDataAsMaps(String tableName, List<String> columns) {
+        List<Map<String, Object>> data = new ArrayList<>();
+        String sql = "SELECT * FROM " + tableName;
+
+        try (Connection conn = DatabaseManager.getConnection();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+
+            while (rs.next()) {
+                Map<String, Object> row = new java.util.HashMap<>();
+                for (String col : columns) {
+                    Object val = rs.getObject(col);
+                    // Convert SQL specific types to String to avoid serialization issues
+                    if (val instanceof java.sql.Date || val instanceof java.sql.Time || val instanceof java.sql.Timestamp) {
+                        val = val.toString();
+                    }
+                    row.put(col, val);
+                }
+                data.add(row);
+            }
+        } catch (SQLException e) {
+            logger.log(Level.SEVERE, e, () -> "Failed to fetch data from " + tableName);
         }
         return data;
     }
@@ -85,32 +115,46 @@ public class GenericDAO {
     }
 
     /**
-     * Dynamically builds and executes an UPDATE statement.
-     * @param pkName The name of the Primary Key column (e.g., "id_usuario")
-     * @param pkValue The value of the row we want to update.
+     * Overload for single primary key.
      */
     public static void update(String tableName, String pkName, Object pkValue, Map<String, Object> data) throws SQLException {
-        // We create the "COLUMN = ?" part for the SQL SET clause
-        String setClause = data.keySet().stream().map(col -> col + " = ?").collect(Collectors.joining(", "));
-        String sql = String.format("UPDATE %s SET %s WHERE %s = ?", tableName, setClause, pkName);
+        update(tableName, List.of(pkName), List.of(pkValue), data);
+    }
 
-        // Merge the new values with the Primary Key value at the end (last "?" is the WHERE clause)
+    /**
+     * Updates one or more rows in a table.
+     * Use this for tables with single or composite primary keys.
+     */
+    public static void update(String tableName, List<String> pkNames, List<Object> pkValues, Map<String, Object> data) throws SQLException {
+        String setClause = data.keySet().stream().map(col -> col + " = ?").collect(Collectors.joining(", "));
+        String whereClause = pkNames.stream().map(pk -> pk + " = ?").collect(Collectors.joining(" AND "));
+        String sql = String.format("UPDATE %s SET %s WHERE %s", tableName, setClause, whereClause);
+
         List<Object> params = new ArrayList<>(data.values());
-        params.add(pkValue);
+        params.addAll(pkValues);
 
         try {
             executeUpdate(sql, params);
         } catch (SQLException e) {
-            throw new SQLException("Error updating " + tableName + " (PK: " + pkName + "=" + pkValue + "). Data: " + data + ". " + e.getMessage(), e);
+            throw new SQLException("Error updating " + tableName + " (PKs: " + pkNames + "=" + pkValues + "). Data: " + data + ". " + e.getMessage(), e);
         }
     }
 
     /**
-     * Deletes a row based on its Primary Key.
+     * Overload for single primary key.
      */
     public static void delete(String tableName, String pkName, Object pkValue) throws SQLException {
-        String sql = String.format("DELETE FROM %s WHERE %s = ?", tableName, pkName);
-        executeUpdate(sql, List.of(pkValue));
+        delete(tableName, List.of(pkName), List.of(pkValue));
+    }
+
+    /**
+     * Deletes one or more rows from a table.
+     * Use this for tables with single or composite primary keys.
+     */
+    public static void delete(String tableName, List<String> pkNames, List<Object> pkValues) throws SQLException {
+        String whereClause = pkNames.stream().map(pk -> pk + " = ?").collect(Collectors.joining(" AND "));
+        String sql = String.format("DELETE FROM %s WHERE %s", tableName, whereClause);
+        executeUpdate(sql, pkValues);
     }
 
     /**

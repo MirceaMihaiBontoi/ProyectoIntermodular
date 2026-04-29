@@ -1,54 +1,112 @@
 package com.reservas.app;
 
+import com.reservas.app.controller.PrimaryController;
 import com.reservas.app.dao.DatabaseManager;
 import com.reservas.app.web.WebServer;
 import javafx.application.Application;
+import javafx.application.Platform;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
+
 import java.io.IOException;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * Main class of the JavaFX application.
- * It extends 'Application', which is the base class for all JavaFX apps.
+ * Main entry point for the Reservation System JavaFX application.
+ * Manages the application lifecycle, database initialization, and web server integration.
  */
 public class App extends Application {
 
     private static final Logger logger = Logger.getLogger(App.class.getName());
+    
+    // Configuration Constants
+    private static final int DEFAULT_PORT = 3000;
+    private static final int WINDOW_WIDTH = 1200;
+    private static final int WINDOW_HEIGHT = 800;
+    private static final String APP_TITLE = "Reservation System";
+    private static final String PRIMARY_FXML = "primary";
 
     /**
-     * The 'start' method is the main entry point for all JavaFX applications.
-     * It is called after the system is ready for the application to begin running.
+     * Initializes the application and UI.
+     * @param stage The primary stage for this application.
      */
     @Override
-    public void start(Stage stage) throws IOException {
-        // Initialize the database connection and schema before the UI starts
-        DatabaseManager.initializeDatabase();
-        
-        // Start the web server in a separate thread
-        new Thread(() -> WebServer.start(3000)).start();
-        
-        logger.info("Application started.");
-        
-        // Load the main FXML layout and display it in the primary stage (window)
-        Scene scene = new Scene(loadFXML("primary"), 1200, 800);
+    public void start(Stage stage) {
+        try {
+            // 1. Core Services Initialization
+            DatabaseManager.initializeDatabase();
+            
+            // 2. Start Web Server and register UI refresh callback
+            startWebServer();
+            WebServer.setOnDataChange(() -> {
+                PrimaryController controller = PrimaryController.getInstance();
+                if (controller != null) {
+                    controller.refreshAllData();
+                    controller.refreshAllCombos();
+                }
+            });
+            
+            // 3. UI Setup
+            setupUI(stage);
+            
+            logger.info("Application started successfully.");
+        } catch (Exception e) {
+            logger.log(Level.SEVERE, "Failed to start application", e);
+            Platform.exit();
+        }
+    }
+
+    /**
+     * Starts the Javalin web server in a separate daemon thread.
+     */
+    private void startWebServer() {
+        Thread webThread = new Thread(() -> WebServer.start(DEFAULT_PORT));
+        webThread.setDaemon(true); // Ensures the thread dies when the main app exits
+        webThread.setName("WebServer-Thread");
+        webThread.start();
+        logger.info("Web server initiated on port " + DEFAULT_PORT);
+    }
+
+    /**
+     * Configures the primary stage and loads the initial scene.
+     */
+    private void setupUI(Stage stage) throws IOException {
+        Scene scene = new Scene(loadFXML(PRIMARY_FXML), WINDOW_WIDTH, WINDOW_HEIGHT);
         stage.setScene(scene);
-        stage.setTitle("Reservation System");
+        stage.setTitle(APP_TITLE);
+        
+        // Ensure clean exit when window is closed
+        stage.setOnCloseRequest(event -> {
+            logger.info("Close request received, exiting platform...");
+            Platform.exit();
+        });
+        
         stage.show();
     }
 
     /**
-     * Utility method to load FXML files from the resources folder.
+     * Cleanly stops all background services when the application exits.
+     * This is automatically called by the JavaFX platform.
+     */
+    @Override
+    public void stop() {
+        logger.info("Stopping application services...");
+        WebServer.stop();
+    }
+
+    /**
+     * Utility to load FXML resources.
      */
     private static Parent loadFXML(String fxml) throws IOException {
-        FXMLLoader fxmlLoader = new FXMLLoader(App.class.getResource(fxml + ".fxml"));
+        FXMLLoader fxmlLoader = new FXMLLoader(App.class.getResource("/com/reservas/app/" + fxml + ".fxml"));
         return fxmlLoader.load();
     }
 
     public static void main(String[] args) {
-        // launch() starts the JavaFX lifecycle
-        launch();
+        launch(args);
     }
 }
+

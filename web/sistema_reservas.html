@@ -13,18 +13,18 @@
             <p>Staff Panel - Reservation Management</p>
         </div>
 
-        <div class="nav">
-            <button class="active" onclick="showSection('reservas')">Reservations</button>
-            <button onclick="showSection('nueva-reserva')">New Reservation</button>
-            <button onclick="showSection('usuarios')">Users</button>
-            <button onclick="showSection('recursos')">Resources</button>
+        <div class="nav" id="mainNav">
+            <button class="nav-btn active" data-section="reservas">Reservations</button>
+            <button class="nav-btn" data-section="nueva-reserva">New Reservation</button>
+            <button class="nav-btn" data-section="usuarios">Users</button>
+            <button class="nav-btn" data-section="recursos">Resources</button>
         </div>
 
         <div class="content">
             <!-- Reservations Section -->
             <div id="reservas" class="section active">
                 <div class="search-box">
-                    <input type="text" id="searchReservas" placeholder="Search reservations..." onkeyup="filterReservas()">
+                    <input type="text" id="searchReservas" placeholder="Search reservations...">
                 </div>
                 <div id="reservasLoading" class="loading">Loading reservations...</div>
                 <div id="reservasError" class="error" style="display: none;"></div>
@@ -87,7 +87,7 @@
             <!-- Users Section -->
             <div id="usuarios" class="section">
                 <div class="search-box">
-                    <input type="text" id="searchUsuarios" placeholder="Search users..." onkeyup="filterUsuarios()">
+                    <input type="text" id="searchUsuarios" placeholder="Search users...">
                 </div>
                 <div id="usuariosLoading" class="loading">Loading users...</div>
                 <div id="usuariosError" class="error" style="display: none;"></div>
@@ -97,7 +97,7 @@
             <!-- Resources Section -->
             <div id="recursos" class="section">
                 <div class="search-box">
-                    <input type="text" id="searchRecursos" placeholder="Search resources..." onkeyup="filterRecursos()">
+                    <input type="text" id="searchRecursos" placeholder="Search resources...">
                 </div>
                 <div id="recursosLoading" class="loading">Loading resources...</div>
                 <div id="recursosError" class="error" style="display: none;"></div>
@@ -106,6 +106,6 @@
         </div>
     </div>
 
-    <script src="js/app.js"></script>
+    <script type="module" src="js/app.js"></script>
 </body>
 </html>

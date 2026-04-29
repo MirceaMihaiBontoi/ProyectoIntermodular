@@ -5,94 +5,77 @@ import com.google.gson.GsonBuilder;
 import com.reservas.app.dao.DatabaseManager;
 import com.reservas.app.dao.GenericDAO;
 import com.reservas.app.dao.MetadataDAO;
+import com.reservas.app.dao.ReservaDAO;
 import io.javalin.Javalin;
 import io.javalin.http.Context;
 import io.javalin.http.staticfiles.Location;
+import io.javalin.json.JavalinGson;
+import io.javalin.websocket.WsContext;
 
-import java.io.IOException;
-import java.net.ServerSocket;
-import java.sql.SQLException;
+import com.google.gson.reflect.TypeToken;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
- * Web server for the reservation system staff interface.
- * Provides REST API endpoints and serves static HTML files.
+ * Portable and decoupled web server for the reservation system.
+ * Serves the REST API and static files.
  */
 public class WebServer {
 
+    private static final String RESERVA_TABLE = "reserva";
+    private static final String USUARIO_TABLE = "usuario";
+    private static final String RECURSO_TABLE = "recurso";
+    private static final String HORARIO_TABLE = "horario";
+    private static final String ERROR_KEY = "error";
+    private static final String UNKNOWN_ERROR = "Unknown error";
+    private static final String ID_RECURSO = "id_recurso";
+    private static final String CONTRASENA = "contrasena";
+    private static final String TIPO_USUARIO = "tipo_usuario";
+
+    private static final Logger logger = Logger.getLogger(WebServer.class.getName());
     private static final Gson gson = new GsonBuilder().setPrettyPrinting().create();
+    private static final List<WsContext> clients = new CopyOnWriteArrayList<>();
     private static Javalin app;
+    private static Runnable uiRefreshCallback;
 
     /**
-     * Checks if a port is available.
+     * Registers a callback to refresh the UI when data changes.
      */
-    private static boolean isPortAvailable(int port) {
-        try (ServerSocket socket = new ServerSocket(port)) {
-            socket.setReuseAddress(true);
-            return true;
-        } catch (IOException e) {
-            return false;
-        }
+    public static void setOnDataChange(Runnable callback) {
+        uiRefreshCallback = callback;
     }
 
     /**
-     * Kills process using the specified port.
+     * Starts the server.
      */
-    private static void killProcessOnPort(int port) {
-        try {
-            ProcessBuilder pb = new ProcessBuilder("netstat", "-ano");
-            Process process = pb.start();
-            
-            java.io.BufferedReader reader = new java.io.BufferedReader(
-                new java.io.InputStreamReader(process.getInputStream()));
-            
-            String line;
-            while ((line = reader.readLine()) != null) {
-                if (line.contains(":" + port) && line.contains("LISTENING")) {
-                    String[] parts = line.trim().split("\\s+");
-                    String pid = parts[parts.length - 1];
-                    try {
-                        new ProcessBuilder("taskkill", "/F", "/PID", pid).start();
-                        System.out.println("Killed process " + pid + " using port " + port);
-                    } catch (IOException e) {
-                        System.err.println("Failed to kill process " + pid);
-                    }
-                }
-            }
-            process.waitFor();
-        } catch (Exception e) {
-            System.err.println("Error killing process on port " + port + ": " + e.getMessage());
-        }
-    }
-
     public static void start(int port) {
-        // Kill any process using the port before starting
-        if (!isPortAvailable(port)) {
-            System.out.println("Port " + port + " is in use, attempting to kill process...");
-            killProcessOnPort(port);
-            // Wait a moment for the process to be killed
-            try {
-                Thread.sleep(1000);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
-        }
-        
-        DatabaseManager.initializeDatabase();
-        
-        app = Javalin.create(config -> {
-            config.staticFiles.add("web", Location.EXTERNAL);
-        }).start(port);
+        try {
+            app = Javalin.create(config -> {
+                config.staticFiles.add("web", Location.EXTERNAL);
+                config.jsonMapper(new JavalinGson(gson));
+            });
 
-        // API Endpoints
-        setupEndpoints();
-        
-        System.out.println("Web server started on http://localhost:" + port);
+            app.ws("/ws", ws -> {
+                ws.onConnect(ctx -> clients.add(ctx));
+                ws.onClose(ctx -> clients.remove(ctx));
+                ws.onMessage(ctx -> logger.info("WS Message received: " + ctx.message()));
+            });
+
+            app.start(port);
+
+            setupEndpoints();
+            logger.log(Level.INFO, "Web server started on http://localhost:{0}", port);
+        } catch (Exception e) {
+            logger.log(Level.SEVERE, "Failed to start web server: {0}", e.getMessage());
+        }
     }
 
     private static void setupEndpoints() {
-        // Serve index.html at root
         app.get("/", ctx -> ctx.redirect("/sistema_reservas.html"));
         
         // Reservations
@@ -100,70 +83,128 @@ public class WebServer {
         app.post("/api/reservas", WebServer::createReserva);
         app.delete("/api/reservas/{id_recurso}/{id_reserva_local}", WebServer::deleteReserva);
 
-        // Users (read-only)
+        // Metadata / Read-only
         app.get("/api/usuarios", WebServer::getUsuarios);
-
-        // Resources (read-only)
         app.get("/api/recursos", WebServer::getRecursos);
-
-        // Schedules (for dropdowns)
         app.get("/api/horarios", WebServer::getHorarios);
     }
 
     private static void getReservas(Context ctx) {
-        List<Map<String, Object>> reservas = GenericDAO.fetchDataAsMaps("reserva", 
-            MetadataDAO.getColumnNames("reserva"));
-        ctx.json(reservas);
+        try {
+            List<Map<String, Object>> reservas = GenericDAO.fetchDataAsMaps(RESERVA_TABLE, 
+                MetadataDAO.getColumnNames(RESERVA_TABLE));
+            ctx.json(reservas);
+        } catch (Exception e) {
+            handleError(ctx, "Error fetching reservations", e);
+        }
     }
 
     private static void createReserva(Context ctx) {
         try {
-            Map<String, Object> data = gson.fromJson(ctx.body(), Map.class);
-            GenericDAO.insert("reserva", data);
+            Map<String, Object> data = gson.fromJson(ctx.body(), new TypeToken<Map<String, Object>>(){}.getType());
+            
+            try (Connection conn = DatabaseManager.getConnection()) {
+                String error = ReservaDAO.validateReserva(conn, data);
+                if (error != null) {
+                    ctx.status(400).json(Map.of(ERROR_KEY, error));
+                    return;
+                }
+                ReservaDAO.generateLocalId(conn, data);
+            }
+            
+            GenericDAO.insert(RESERVA_TABLE, data);
             ctx.status(201).json(Map.of("message", "Reservation created successfully"));
-        } catch (SQLException e) {
-            ctx.status(500).json(Map.of("error", e.getMessage()));
+            broadcastRefresh();
+        } catch (Exception e) {
+            handleError(ctx, "Error creating reservation", e);
         }
     }
 
     private static void deleteReserva(Context ctx) {
         try {
-            String idRecurso = ctx.pathParam("id_recurso");
-            String idReservaLocal = ctx.pathParam("id_reserva_local");
+            int idRecurso = Integer.parseInt(ctx.pathParam(ID_RECURSO));
+            int idReservaLocal = Integer.parseInt(ctx.pathParam("id_reserva_local"));
             
-            // Delete using composite primary key
-            try (var conn = DatabaseManager.getConnection();
-                 var stmt = conn.prepareStatement(
-                     "DELETE FROM reserva WHERE id_recurso = ? AND id_reserva_local = ?")) {
-                stmt.setString(1, idRecurso);
-                stmt.setString(2, idReservaLocal);
+            try (Connection conn = DatabaseManager.getConnection();
+                 PreparedStatement stmt = conn.prepareStatement(
+                     "DELETE FROM reserva WHERE id_reserva_local = ? AND id_recurso = ?")) {
+                stmt.setInt(1, idReservaLocal);
+                stmt.setInt(2, idRecurso);
                 stmt.executeUpdate();
             }
             
             ctx.json(Map.of("message", "Reservation cancelled successfully"));
-        } catch (SQLException e) {
-            ctx.status(500).json(Map.of("error", e.getMessage()));
+            broadcastRefresh();
+        } catch (Exception e) {
+            handleError(ctx, "Error cancelling reservation", e);
         }
     }
 
+    /**
+     * Notifies only the web clients via WebSocket.
+     */
+    public static void notifyWeb() {
+        for (WsContext ctx : clients) {
+            if (ctx.session.isOpen()) {
+                ctx.send("refresh");
+            }
+        }
+    }
+
+    /**
+     * Notifies only the JavaFX UI.
+     */
+    private static void notifyUI() {
+        if (uiRefreshCallback != null) {
+            javafx.application.Platform.runLater(uiRefreshCallback);
+        }
+    }
+
+    /**
+     * Notifies both the UI and the web clients.
+     */
+    public static void broadcastRefresh() {
+        notifyUI();
+        notifyWeb();
+    }
+
+    private static void handleError(Context ctx, String message, Exception e) {
+        logger.log(Level.SEVERE, "{0}: {1}", new Object[]{message, e.getMessage()});
+        ctx.status(500).json(Map.of(ERROR_KEY, e.getMessage() != null ? e.getMessage() : UNKNOWN_ERROR));
+    }
+
     private static void getUsuarios(Context ctx) {
-        List<Map<String, Object>> usuarios = GenericDAO.fetchDataAsMaps("usuario", 
-            MetadataDAO.getColumnNames("usuario"));
-        // Remove password from response for security
-        usuarios.forEach(u -> u.remove("contrasena"));
-        ctx.json(usuarios);
+        try {
+            List<Map<String, Object>> usuarios = GenericDAO.fetchDataAsMaps(USUARIO_TABLE, 
+                MetadataDAO.getColumnNames(USUARIO_TABLE));
+            usuarios.removeIf(u -> {
+                u.remove(CONTRASENA);
+                return "Administrador".equals(u.get(TIPO_USUARIO));
+            });
+            ctx.json(usuarios);
+        } catch (Exception e) {
+            handleError(ctx, "Error fetching users", e);
+        }
     }
 
     private static void getRecursos(Context ctx) {
-        List<Map<String, Object>> recursos = GenericDAO.fetchDataAsMaps("recurso", 
-            MetadataDAO.getColumnNames("recurso"));
-        ctx.json(recursos);
+        try {
+            List<Map<String, Object>> recursos = GenericDAO.fetchDataAsMaps(RECURSO_TABLE, 
+                MetadataDAO.getColumnNames(RECURSO_TABLE));
+            ctx.json(recursos);
+        } catch (Exception e) {
+            handleError(ctx, "Error fetching resources", e);
+        }
     }
 
     private static void getHorarios(Context ctx) {
-        List<Map<String, Object>> horarios = GenericDAO.fetchDataAsMaps("horario", 
-            MetadataDAO.getColumnNames("horario"));
-        ctx.json(horarios);
+        try {
+            List<Map<String, Object>> horarios = GenericDAO.fetchDataAsMaps(HORARIO_TABLE, 
+                MetadataDAO.getColumnNames(HORARIO_TABLE));
+            ctx.json(horarios);
+        } catch (Exception e) {
+            handleError(ctx, "Error fetching schedules", e);
+        }
     }
 
     public static void stop() {
@@ -173,6 +214,7 @@ public class WebServer {
     }
 
     public static void main(String[] args) {
-        start(8080);
+        start(3000);
     }
 }
+

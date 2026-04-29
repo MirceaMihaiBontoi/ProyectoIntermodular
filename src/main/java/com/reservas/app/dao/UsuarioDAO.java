@@ -4,6 +4,7 @@ import com.reservas.app.util.PasswordHasher;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -12,6 +13,12 @@ import java.util.Map;
  * This DAO only handles what the DB cannot do: creating child table records based on tipo_usuario.
  */
 public class UsuarioDAO {
+
+    private static final String TIPO_USUARIO = "tipo_usuario";
+    private static final String CONTRASENA = "contrasena";
+    private static final String USUARIO = "usuario";
+    private static final String ADMIN_ROLE = "Administrador";
+    private static final String NORMAL_ROLE = "Normal";
 
     private UsuarioDAO() {
         throw new IllegalStateException("Utility class");
@@ -24,57 +31,60 @@ public class UsuarioDAO {
      * Password is automatically hashed before insertion.
      */
     public static void insertWithCascade(Map<String, Object> data) throws SQLException {
-        String tipoUsuario = (String) data.get("tipo_usuario");
+        String tipoUsuario = (String) data.get(TIPO_USUARIO);
         Object idUsuario = data.get("id_usuario");
 
         // Hash password before insertion
-        if (data.containsKey("contrasena")) {
-            String plainPassword = (String) data.get("contrasena");
-            data.put("contrasena", PasswordHasher.hashPassword(plainPassword));
+        if (data.containsKey(CONTRASENA)) {
+            String plainPassword = (String) data.get(CONTRASENA);
+            data.put(CONTRASENA, PasswordHasher.hashPassword(plainPassword));
         }
 
-        GenericDAO.insert("usuario", data);
+        GenericDAO.insert(USUARIO, data);
 
-        if ("Administrador".equals(tipoUsuario)) {
+        if (ADMIN_ROLE.equals(tipoUsuario)) {
             createAdministrador(idUsuario);
-        } else if ("Normal".equals(tipoUsuario)) {
+        } else if (NORMAL_ROLE.equals(tipoUsuario)) {
             createUsuarioNormal(idUsuario);
         }
     }
 
     /**
-     * Updates a user and handles tipo_usuario changes:
-     * - If tipo_usuario changed from Administrador to Normal: delete from administrador, create in usuarionormal
-     * - If tipo_usuario changed from Normal to Administrador: delete from usuarionormal, create in administrador
-     * Password is automatically hashed if provided in the update data.
+     * Updates a user and handles tipo_usuario changes.
+     * Overload for single primary key.
      */
     public static void updateWithCascade(String pkName, Object pkValue, Map<String, Object> data) throws SQLException {
-        // Get the current tipo_usuario before update
+        updateWithCascade(List.of(pkName), List.of(pkValue), data);
+    }
+
+    public static void updateWithCascade(List<String> pkNames, List<Object> pkValues, Map<String, Object> data) throws SQLException {
+        // Get the current tipo_usuario before update. Assuming single PK for user.
+        Object pkValue = pkValues.get(0);
         String currentTipo = getCurrentTipoUsuario(pkValue);
-        String newTipo = (String) data.get("tipo_usuario");
+        String newTipo = (String) data.get(TIPO_USUARIO);
 
         // Hash password if provided in update
-        if (data.containsKey("contrasena")) {
-            String plainPassword = (String) data.get("contrasena");
-            data.put("contrasena", PasswordHasher.hashPassword(plainPassword));
+        if (data.containsKey(CONTRASENA)) {
+            String plainPassword = (String) data.get(CONTRASENA);
+            data.put(CONTRASENA, PasswordHasher.hashPassword(plainPassword));
         }
 
         // Update usuario table
-        GenericDAO.update("usuario", pkName, pkValue, data);
+        GenericDAO.update(USUARIO, pkNames, pkValues, data);
 
         // Handle tipo_usuario change if needed
         if (currentTipo != null && newTipo != null && !currentTipo.equals(newTipo)) {
             // Delete from old child table
-            if ("Administrador".equals(currentTipo)) {
+            if (ADMIN_ROLE.equals(currentTipo)) {
                 deleteFromAdministrador(pkValue);
-            } else if ("Normal".equals(currentTipo)) {
+            } else if (NORMAL_ROLE.equals(currentTipo)) {
                 deleteFromUsuarioNormal(pkValue);
             }
 
             // Create in new child table
-            if ("Administrador".equals(newTipo)) {
+            if (ADMIN_ROLE.equals(newTipo)) {
                 createAdministrador(pkValue);
-            } else if ("Normal".equals(newTipo)) {
+            } else if (NORMAL_ROLE.equals(newTipo)) {
                 createUsuarioNormal(pkValue);
             }
         }
@@ -82,11 +92,15 @@ public class UsuarioDAO {
 
     /**
      * Standard delete - the DB handles CASCADE automatically via foreign key constraints.
-     * This method just calls GenericDAO.delete.
+     * Overload for single primary key.
      */
     public static void deleteWithCascade(String pkName, Object pkValue) throws SQLException {
+        deleteWithCascade(List.of(pkName), List.of(pkValue));
+    }
+
+    public static void deleteWithCascade(List<String> pkNames, List<Object> pkValues) throws SQLException {
         // DB's ON DELETE CASCADE handles deleting from administrador/usuarionormal automatically
-        GenericDAO.delete("usuario", pkName, pkValue);
+        GenericDAO.delete(USUARIO, pkNames, pkValues);
     }
 
     /**
@@ -107,11 +121,11 @@ public class UsuarioDAO {
     private static String getHashedPassword(Object idUsuario) throws SQLException {
         try (Connection conn = DatabaseManager.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(
-                 "SELECT contrasena FROM usuario WHERE id_usuario = ?")) {
+                 "SELECT " + CONTRASENA + " FROM usuario WHERE id_usuario = ?")) {
             pstmt.setObject(1, idUsuario);
             var rs = pstmt.executeQuery();
             if (rs.next()) {
-                return rs.getString("contrasena");
+                return rs.getString(CONTRASENA);
             }
         }
         return null;
@@ -120,11 +134,11 @@ public class UsuarioDAO {
     private static String getCurrentTipoUsuario(Object idUsuario) throws SQLException {
         try (Connection conn = DatabaseManager.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(
-                 "SELECT tipo_usuario FROM usuario WHERE id_usuario = ?")) {
+                 "SELECT " + TIPO_USUARIO + " FROM usuario WHERE id_usuario = ?")) {
             pstmt.setObject(1, idUsuario);
             var rs = pstmt.executeQuery();
             if (rs.next()) {
-                return rs.getString("tipo_usuario");
+                return rs.getString(TIPO_USUARIO);
             }
         }
         return null;

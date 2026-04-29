@@ -1,8 +1,8 @@
 package com.reservas.app.controller;
 
-import com.reservas.app.dao.GenericDAO;
 import com.reservas.app.dao.MetadataDAO;
 import com.reservas.app.util.DialogHelper;
+import com.reservas.app.web.WebServer;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -19,7 +19,6 @@ import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -27,6 +26,7 @@ import java.util.logging.Logger;
 public class PrimaryController {
 
     private static final Logger logger = Logger.getLogger(PrimaryController.class.getName());
+    private static PrimaryController instance;
 
     @FXML
     private TabPane mainTabPane;
@@ -41,7 +41,19 @@ public class PrimaryController {
      */
     @FXML
     public void initialize() {
+        setInstance(this);
         reloadTabs();
+    }
+
+    private static void setInstance(PrimaryController controller) {
+        instance = controller;
+    }
+
+    /**
+     * Returns the singleton instance of PrimaryController for external access.
+     */
+    public static PrimaryController getInstance() {
+        return instance;
     }
 
     /**
@@ -68,6 +80,8 @@ public class PrimaryController {
                 ((DynamicTableController) controller).refreshData();
             }
         }
+        // Notify web clients that data has changed in the UI
+        WebServer.notifyWeb();
     }
 
     /**
@@ -102,7 +116,7 @@ public class PrimaryController {
                 tab.setUserData(controller); // Store controller reference for later access
                 mainTabPane.getTabs().add(tab);
             } catch (IOException e) {
-                logger.log(Level.SEVERE, "Error loading tab: " + tableName, e);
+                logger.log(Level.SEVERE, e, () -> "Error loading tab: " + tableName);
             }
         }
     }
@@ -279,6 +293,31 @@ public class PrimaryController {
      */
     @FXML
     private void exitApp() {
+        logger.info("Application closing via exit button, stopping web server...");
+        WebServer.stop();
         Platform.exit();
+        System.exit(0); // Force exit
+    }
+
+    /**
+     * Opens the web interface in the default browser.
+     */
+    @FXML
+    private void openWebInterface() {
+        try {
+            // Use ProcessBuilder to open browser without requiring java.desktop module
+            String os = System.getProperty("os.name").toLowerCase();
+            String url = "http://localhost:3000";
+            
+            if (os.contains("win")) {
+                new ProcessBuilder("cmd", "/c", "start", url).start();
+            } else if (os.contains("mac")) {
+                new ProcessBuilder("open", url).start();
+            } else {
+                new ProcessBuilder("xdg-open", url).start();
+            }
+        } catch (Exception e) {
+            DialogHelper.showError("Error", "Could not open web interface: " + e.getMessage());
+        }
     }
 }

@@ -32,7 +32,7 @@ public class MetadataDAO {
                 tables.add(rs.getString("TABLE_NAME"));
             }
         } catch (SQLException e) {
-            logger.log(Level.SEVERE, "Failed to fetch table names", e);
+            logger.log(Level.SEVERE, e, () -> "Failed to fetch table names");
         }
         return tables;
     }
@@ -48,7 +48,7 @@ public class MetadataDAO {
                 columns.add(rs.getString("COLUMN_NAME"));
             }
         } catch (SQLException e) {
-            logger.log(Level.SEVERE, "Failed to fetch columns for " + tableName, e);
+            logger.log(Level.SEVERE, e, () -> "Failed to fetch columns for " + tableName);
         }
         return columns;
     }
@@ -64,7 +64,7 @@ public class MetadataDAO {
                 return rs.getString("TYPE_NAME");
             }
         } catch (SQLException e) {
-            logger.log(Level.SEVERE, "Failed to fetch column type for " + tableName + "." + columnName, e);
+            logger.log(Level.SEVERE, e, () -> "Failed to fetch column type for " + tableName + "." + columnName);
         }
         return "TEXT"; // Default to TEXT if type cannot be determined
     }
@@ -82,20 +82,32 @@ public class MetadataDAO {
         if ("horario".equals(tableName) && "dia_semana".equals(columnName)) {
             return List.of("Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo");
         }
-        return null; // No known allowed values
+        return List.of(); // No known allowed values
     }
 
     /**
-     * Finds the Primary Key (PK) of a table.
+     * Returns the primary key(s) of the specified table.
      */
-    public static String getPrimaryKey(String tableName) {
+    public static List<String> getPrimaryKeys(String tableName) {
+        List<String> pks = new ArrayList<>();
         try (Connection conn = DatabaseManager.getConnection();
              ResultSet rs = conn.getMetaData().getPrimaryKeys(null, null, tableName)) {
-            if (rs.next()) return rs.getString("COLUMN_NAME");
+            while (rs.next()) {
+                pks.add(rs.getString("COLUMN_NAME"));
+            }
         } catch (SQLException e) {
-            logger.log(Level.SEVERE, "Failed to fetch primary key for " + tableName, e);
+            logger.log(Level.SEVERE, e, () -> "Error getting primary keys: " + e.getMessage());
         }
-        return null;
+        return pks;
+    }
+
+    /**
+     * Convenience method for tables with a single primary key.
+     * If the table has a composite key, returns the first column found.
+     */
+    public static String getPrimaryKey(String tableName) {
+        List<String> pks = getPrimaryKeys(tableName);
+        return pks.isEmpty() ? null : pks.get(0);
     }
 
     /**
@@ -114,7 +126,7 @@ public class MetadataDAO {
                 ));
             }
         } catch (SQLException e) {
-            logger.log(Level.SEVERE, "Failed to fetch foreign keys for " + tableName, e);
+            logger.log(Level.SEVERE, e, () -> "Failed to fetch foreign keys for " + tableName);
         }
         return fks;
     }
@@ -134,7 +146,7 @@ public class MetadataDAO {
                 values.add(rs.getString(1));
             }
         } catch (SQLException e) {
-            logger.log(Level.SEVERE, "Failed to fetch rows from " + table, e);
+            logger.log(Level.SEVERE, e, () -> "Failed to fetch rows from " + table);
         }
         return values;
     }

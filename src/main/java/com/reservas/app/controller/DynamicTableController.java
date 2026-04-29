@@ -24,10 +24,11 @@ public class DynamicTableController {
     @FXML private TableView<ObservableList<StringProperty>> dynamicTable;
     @FXML private GridPane dynamicForm;
 
+    private static final String USUARIO_TABLE = "usuario";
     private String tableName;
     private List<String> columnNames;
     private FormManager formManager;
-    private Object selectedPkValue;
+    private List<Object> selectedPkValues;
     private PrimaryController primaryController;
 
     /**
@@ -44,11 +45,12 @@ public class DynamicTableController {
         formManager.build();
 
         // 3. Setup the Table Manager (controls columns and selection)
-        // Capture the original PK so updates use it even if the user edits the PK field
         new TableManager(dynamicTable, columnNames).build(values -> {
             formManager.fill(values);
-            String pk = MetadataDAO.getPrimaryKey(tableName);
-            selectedPkValue = (pk != null) ? values.get(columnNames.indexOf(pk)) : null;
+            List<String> pkNames = MetadataDAO.getPrimaryKeys(tableName);
+            selectedPkValues = pkNames.stream()
+                .map(pk -> (Object) values.get(columnNames.indexOf(pk)))
+                .toList();
         });
         
         // 4. Initial data load
@@ -71,7 +73,7 @@ public class DynamicTableController {
 
     @FXML private void clearForm() {
         formManager.clear();
-        selectedPkValue = null;
+        selectedPkValues = null;
     }
 
     /**
@@ -79,7 +81,7 @@ public class DynamicTableController {
      */
     @FXML private void handleSave() {
         // Special handling for usuario table with cascade logic
-        if ("usuario".equals(tableName)) {
+        if (USUARIO_TABLE.equals(tableName)) {
             DialogHelper.doDbAction(() -> UsuarioDAO.insertWithCascade(formManager.getAllValues()),
                 "Record inserted successfully!",
                 () -> { refreshAllData(); refreshAllCombos(); clearForm(); });
@@ -92,42 +94,42 @@ public class DynamicTableController {
     }
 
     @FXML private void handleUpdate() {
-        String pk = MetadataDAO.getPrimaryKey(tableName);
-        if (pk == null) {
+        List<String> pks = MetadataDAO.getPrimaryKeys(tableName);
+        if (pks.isEmpty()) {
             DialogHelper.showError("Error", "No Primary Key found for this table.");
             return;
         }
-        if (selectedPkValue == null) {
+        if (selectedPkValues == null || selectedPkValues.isEmpty()) {
             DialogHelper.showError("Error", "Select a row before updating.");
             return;
         }
 
         // Special handling for usuario table with cascade logic
-        if ("usuario".equals(tableName)) {
-            DialogHelper.doDbAction(() -> UsuarioDAO.updateWithCascade(pk, selectedPkValue, formManager.getAllValues()),
+        if (USUARIO_TABLE.equals(tableName)) {
+            DialogHelper.doDbAction(() -> UsuarioDAO.updateWithCascade(pks, selectedPkValues, formManager.getAllValues()),
                 "Record updated!",
                 () -> { refreshAllData(); refreshAllCombos(); });
         } else {
             // Standard update for other tables
-            DialogHelper.doDbAction(() -> GenericDAO.update(tableName, pk, selectedPkValue, formManager.getAllValues()),
+            DialogHelper.doDbAction(() -> GenericDAO.update(tableName, pks, selectedPkValues, formManager.getAllValues()),
                 "Record updated!",
                 () -> { refreshAllData(); refreshAllCombos(); });
         }
     }
 
     @FXML private void handleDelete() {
-        String pk = MetadataDAO.getPrimaryKey(tableName);
-        if (pk == null || selectedPkValue == null) return;
+        List<String> pks = MetadataDAO.getPrimaryKeys(tableName);
+        if (pks.isEmpty() || selectedPkValues == null) return;
 
         if (DialogHelper.showConfirmation("Confirm Deletion", "Are you sure you want to delete this record?")) {
             // Special handling for usuario table with cascade logic
-            if ("usuario".equals(tableName)) {
-                DialogHelper.doDbAction(() -> UsuarioDAO.deleteWithCascade(pk, selectedPkValue),
+            if (USUARIO_TABLE.equals(tableName)) {
+                DialogHelper.doDbAction(() -> UsuarioDAO.deleteWithCascade(pks, selectedPkValues),
                     null,
                     () -> { refreshAllData(); refreshAllCombos(); clearForm(); });
             } else {
                 // Standard delete for other tables
-                DialogHelper.doDbAction(() -> GenericDAO.delete(tableName, pk, selectedPkValue),
+                DialogHelper.doDbAction(() -> GenericDAO.delete(tableName, pks, selectedPkValues),
                     null,
                     () -> { refreshAllData(); refreshAllCombos(); clearForm(); });
             }

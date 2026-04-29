@@ -1,12 +1,14 @@
 package com.reservas.app.util;
 
-import org.mindrot.jbcrypt.BCrypt;
+import at.favre.lib.crypto.bcrypt.BCrypt;
 
 /**
  * Utility class for password hashing and verification using BCrypt.
  * BCrypt is a secure password hashing algorithm that automatically handles salting.
  */
 public final class PasswordHasher {
+
+    private static final int COST = 12;
 
     private PasswordHasher() {
         throw new IllegalStateException("Utility class");
@@ -20,7 +22,8 @@ public final class PasswordHasher {
      * @return The hashed password
      */
     public static String hashPassword(String plainPassword) {
-        return BCrypt.hashpw(plainPassword, BCrypt.gensalt());
+        if (plainPassword == null) return null;
+        return BCrypt.withDefaults().hashToString(COST, plainPassword.toCharArray());
     }
 
     /**
@@ -34,6 +37,6 @@ public final class PasswordHasher {
         if (plainPassword == null || hashedPassword == null) {
             return false;
         }
-        return BCrypt.checkpw(plainPassword, hashedPassword);
+        return BCrypt.verifyer().verify(plainPassword.toCharArray(), hashedPassword).verified;
     }
 }

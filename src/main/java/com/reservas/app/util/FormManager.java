@@ -14,7 +14,6 @@ import javafx.scene.layout.Priority;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 /**
  * Orchestrator that manages the dynamic form UI.
@@ -151,7 +150,11 @@ public class FormManager {
      * This Map is what GenericDAO uses to build the SQL query.
      */
     public Map<String, Object> getAllValues() {
-        return columnNames.stream().collect(Collectors.toMap(n -> n, this::getValue));
+        Map<String, Object> values = new HashMap<>();
+        for (String name : columnNames) {
+            values.put(name, getValue(name));
+        }
+        return values;
     }
 
     /**
