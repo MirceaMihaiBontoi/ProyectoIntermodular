@@ -69,25 +69,35 @@ public class DynamicTableController {
     }
 
     @FXML private void handleSave() {
-        DialogHelper.doDbAction(() -> com.reservas.app.dao.DAOProvider.insert(tableName, formManager.getAllValues()),
-            "Record inserted successfully!",
-            this::notifyDataChange);
+        try {
+            formManager.validate();
+            DialogHelper.doDbAction(() -> com.reservas.app.dao.DAOProvider.insert(tableName, formManager.getAllValues()),
+                "Record inserted successfully!",
+                this::notifyDataChange);
+        } catch (IllegalArgumentException e) {
+            DialogHelper.showError("Validation Error", e.getMessage());
+        }
     }
 
     @FXML private void handleUpdate() {
-        List<String> pks = MetadataDAO.getPrimaryKeys(tableName);
-        if (pks.isEmpty()) {
-            DialogHelper.showError("Error", "No Primary Key found for this table.");
-            return;
-        }
-        if (selectedPkValues == null || selectedPkValues.isEmpty()) {
-            DialogHelper.showError("Error", "Select a row before updating.");
-            return;
-        }
+        try {
+            formManager.validate();
+            List<String> pks = MetadataDAO.getPrimaryKeys(tableName);
+            if (pks.isEmpty()) {
+                DialogHelper.showError("Error", "No Primary Key found for this table.");
+                return;
+            }
+            if (selectedPkValues == null || selectedPkValues.isEmpty()) {
+                DialogHelper.showError("Error", "Select a row before updating.");
+                return;
+            }
 
-        DialogHelper.doDbAction(() -> com.reservas.app.dao.DAOProvider.update(tableName, pks, selectedPkValues, formManager.getAllValues()),
-            "Record updated!",
-            this::notifyDataChange);
+            DialogHelper.doDbAction(() -> com.reservas.app.dao.DAOProvider.update(tableName, pks, selectedPkValues, formManager.getAllValues()),
+                "Record updated!",
+                this::notifyDataChange);
+        } catch (IllegalArgumentException e) {
+            DialogHelper.showError("Validation Error", e.getMessage());
+        }
     }
 
     @FXML private void handleDelete() {

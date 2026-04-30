@@ -4,6 +4,7 @@ import com.reservas.app.model.ForeignKey;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
@@ -15,7 +16,9 @@ import java.util.logging.Logger;
  */
 public class MetadataDAO {
 
-    private static final Logger logger = Logger.getLogger(MetadataDAO.class.getName());
+    private static final Logger logger = Logger.getLogger(
+        MetadataDAO.class.getName()
+    );
 
     private MetadataDAO() {
         throw new IllegalStateException("Utility class");
@@ -26,8 +29,12 @@ public class MetadataDAO {
      */
     public static List<String> getTableNames() {
         List<String> tables = new ArrayList<>();
-        try (Connection conn = DatabaseManager.getConnection();
-             ResultSet rs = conn.getMetaData().getTables(null, null, "%", new String[]{"TABLE"})) {
+        try (
+            Connection conn = DatabaseManager.getConnection();
+            ResultSet rs = conn
+                .getMetaData()
+                .getTables(null, null, "%", new String[] { "TABLE" })
+        ) {
             while (rs.next()) {
                 tables.add(rs.getString("TABLE_NAME"));
             }
@@ -42,13 +49,21 @@ public class MetadataDAO {
      */
     public static List<String> getColumnNames(String tableName) {
         List<String> columns = new ArrayList<>();
-        try (Connection conn = DatabaseManager.getConnection();
-             ResultSet rs = conn.getMetaData().getColumns(null, null, tableName, null)) {
+        try (
+            Connection conn = DatabaseManager.getConnection();
+            ResultSet rs = conn
+                .getMetaData()
+                .getColumns(null, null, tableName, null)
+        ) {
             while (rs.next()) {
                 columns.add(rs.getString("COLUMN_NAME"));
             }
         } catch (SQLException e) {
-            logger.log(Level.SEVERE, e, () -> "Failed to fetch columns for " + tableName);
+            logger.log(
+                Level.SEVERE,
+                e,
+                () -> "Failed to fetch columns for " + tableName
+            );
         }
         return columns;
     }
@@ -58,29 +73,82 @@ public class MetadataDAO {
      * Returns the SQL type name (e.g., "DATE", "INTEGER", "TEXT").
      */
     public static String getColumnType(String tableName, String columnName) {
-        try (Connection conn = DatabaseManager.getConnection();
-             ResultSet rs = conn.getMetaData().getColumns(null, null, tableName, columnName)) {
+        try (
+            Connection conn = DatabaseManager.getConnection();
+            ResultSet rs = conn
+                .getMetaData()
+                .getColumns(null, null, tableName, columnName)
+        ) {
             if (rs.next()) {
                 return rs.getString("TYPE_NAME");
             }
         } catch (SQLException e) {
-            logger.log(Level.SEVERE, e, () -> "Failed to fetch column type for " + tableName + "." + columnName);
+            logger.log(
+                Level.SEVERE,
+                e,
+                () ->
+                    "Failed to fetch column type for " +
+                    tableName +
+                    "." +
+                    columnName
+            );
         }
         return "TEXT"; // Default to TEXT if type cannot be determined
+    }
+
+    /**
+     * Checks if a column is mandatory (NOT NULL).
+     */
+    public static boolean isColumnMandatory(
+        String tableName,
+        String columnName
+    ) {
+        try (
+            Connection conn = DatabaseManager.getConnection();
+            ResultSet rs = conn
+                .getMetaData()
+                .getColumns(null, null, tableName, columnName)
+        ) {
+            if (rs.next()) {
+                return rs.getInt("NULLABLE") == DatabaseMetaData.columnNoNulls;
+            }
+        } catch (SQLException e) {
+            logger.log(
+                Level.SEVERE,
+                e,
+                () ->
+                    "Failed to check nullability for " +
+                    tableName +
+                    "." +
+                    columnName
+            );
+        }
+        return false;
     }
 
     /**
      * Gets allowed values for a column with CHECK constraints.
      * Currently hardcoded for known columns since SQLite doesn't expose CHECK constraints via JDBC metadata.
      */
-    public static List<String> getAllowedValues(String tableName, String columnName) {
+    public static List<String> getAllowedValues(
+        String tableName,
+        String columnName
+    ) {
         // Hardcoded for the tipo_usuario CHECK constraint in usuario table
         if ("usuario".equals(tableName) && "tipo_usuario".equals(columnName)) {
             return List.of("Administrador", "Normal");
         }
         // Hardcoded for the dia_semana CHECK constraint in horario table
         if ("horario".equals(tableName) && "dia_semana".equals(columnName)) {
-            return List.of("Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo");
+            return List.of(
+                "Lunes",
+                "Martes",
+                "Miércoles",
+                "Jueves",
+                "Viernes",
+                "Sábado",
+                "Domingo"
+            );
         }
         return List.of(); // No known allowed values
     }
@@ -90,13 +158,21 @@ public class MetadataDAO {
      */
     public static List<String> getPrimaryKeys(String tableName) {
         List<String> pks = new ArrayList<>();
-        try (Connection conn = DatabaseManager.getConnection();
-             ResultSet rs = conn.getMetaData().getPrimaryKeys(null, null, tableName)) {
+        try (
+            Connection conn = DatabaseManager.getConnection();
+            ResultSet rs = conn
+                .getMetaData()
+                .getPrimaryKeys(null, null, tableName)
+        ) {
             while (rs.next()) {
                 pks.add(rs.getString("COLUMN_NAME"));
             }
         } catch (SQLException e) {
-            logger.log(Level.SEVERE, e, () -> "Error getting primary keys: " + e.getMessage());
+            logger.log(
+                Level.SEVERE,
+                e,
+                () -> "Error getting primary keys: " + e.getMessage()
+            );
         }
         return pks;
     }
@@ -115,18 +191,29 @@ public class MetadataDAO {
      */
     public static Map<String, ForeignKey> getForeignKeys(String tableName) {
         Map<String, ForeignKey> fks = new HashMap<>();
-        try (Connection conn = DatabaseManager.getConnection();
-             ResultSet rs = conn.getMetaData().getImportedKeys(null, null, tableName)) {
+        try (
+            Connection conn = DatabaseManager.getConnection();
+            ResultSet rs = conn
+                .getMetaData()
+                .getImportedKeys(null, null, tableName)
+        ) {
             while (rs.next()) {
                 String fkColumn = rs.getString("FKCOLUMN_NAME");
-                fks.put(fkColumn, new ForeignKey(
+                fks.put(
                     fkColumn,
-                    rs.getString("PKTABLE_NAME"),
-                    rs.getString("PKCOLUMN_NAME")
-                ));
+                    new ForeignKey(
+                        fkColumn,
+                        rs.getString("PKTABLE_NAME"),
+                        rs.getString("PKCOLUMN_NAME")
+                    )
+                );
             }
         } catch (SQLException e) {
-            logger.log(Level.SEVERE, e, () -> "Failed to fetch foreign keys for " + tableName);
+            logger.log(
+                Level.SEVERE,
+                e,
+                () -> "Failed to fetch foreign keys for " + tableName
+            );
         }
         return fks;
     }
@@ -135,19 +222,71 @@ public class MetadataDAO {
      * Utility method to fetch all values from a specific column.
      * Used to populate ComboBoxes (dropdowns) in the forms.
      */
-    public static List<String> getAllRowsFromTable(String table, String column) {
+    public static List<String> getAllRowsFromTable(
+        String table,
+        String column
+    ) {
         List<String> values = new ArrayList<>();
         // Note: identifiers come from our own metadata, not from user input.
         String sql = "SELECT " + column + " FROM " + table;
-        try (Connection conn = DatabaseManager.getConnection();
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
+        try (
+            Connection conn = DatabaseManager.getConnection();
+            Statement stmt = conn.createStatement();
+            ResultSet rs = stmt.executeQuery(sql)
+        ) {
             while (rs.next()) {
                 values.add(rs.getString(1));
             }
         } catch (SQLException e) {
-            logger.log(Level.SEVERE, e, () -> "Failed to fetch rows from " + table);
+            logger.log(
+                Level.SEVERE,
+                e,
+                () -> "Failed to fetch rows from " + table
+            );
         }
         return values;
+    }
+
+    public static Map<String, String> getDisplayRowsFromTable(
+        String table,
+        String valueColumn
+    ) {
+        Map<String, String> values = new LinkedHashMap<>();
+        String displayColumn = getPreferredDisplayColumn(table, valueColumn);
+        String sql = displayColumn.equals(valueColumn)
+            ? "SELECT " + valueColumn + " FROM " + table
+            : "SELECT " + valueColumn + ", " + displayColumn + " FROM " + table;
+
+        try (
+            Connection conn = DatabaseManager.getConnection();
+            Statement stmt = conn.createStatement();
+            ResultSet rs = stmt.executeQuery(sql)
+        ) {
+            while (rs.next()) {
+                String value = rs.getString(1);
+                String label = displayColumn.equals(valueColumn)
+                    ? value
+                    : value + " - " + rs.getString(2);
+                values.put(value, label);
+            }
+        } catch (SQLException e) {
+            logger.log(
+                Level.SEVERE,
+                e,
+                () -> "Failed to fetch display rows from " + table
+            );
+        }
+        return values;
+    }
+
+    private static String getPreferredDisplayColumn(
+        String table,
+        String fallbackColumn
+    ) {
+        List<String> columns = getColumnNames(table);
+        if (columns.contains("nombre")) return "nombre";
+        if (columns.contains("correo_electronico")) return "correo_electronico";
+        if (columns.contains("dia_semana")) return "dia_semana";
+        return fallbackColumn;
     }
 }

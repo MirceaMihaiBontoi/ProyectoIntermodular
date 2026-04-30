@@ -5,7 +5,7 @@
 }
 
 body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     min-height: 100vh;
     padding: 20px;
@@ -16,7 +16,7 @@ body {
     margin: 0 auto;
     background: white;
     border-radius: 10px;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
     overflow: hidden;
 }
 
@@ -86,6 +86,11 @@ body {
     margin-bottom: 8px;
     font-weight: 600;
     color: #495057;
+}
+
+.label-mandatory::after {
+    content: " *";
+    color: #dc3545;
 }
 
 .form-group input,
@@ -195,6 +200,7 @@ body {
     padding: 15px;
     border-radius: 5px;
     margin-bottom: 20px;
+    white-space: pre-line;
 }
 
 .success {
@@ -203,6 +209,7 @@ body {
     padding: 15px;
     border-radius: 5px;
     margin-bottom: 20px;
+    white-space: pre-line;
 }
 
 .grid {
@@ -222,7 +229,7 @@ body {
 .resource-card:hover {
     border-color: #667eea;
     transform: translateY(-5px);
-    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
 }
 
 .resource-card h4 {
@@ -241,7 +248,7 @@ body {
 .user-card:hover {
     border-color: #667eea;
     transform: translateY(-5px);
-    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
 }
 
 .user-card h4 {

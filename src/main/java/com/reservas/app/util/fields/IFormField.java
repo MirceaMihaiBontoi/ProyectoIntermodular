@@ -27,4 +27,9 @@ public interface IFormField {
      * @return The underlying JavaFX Control (TextField, ComboBox) to add to the UI.
      */
     Control getControl();
+
+    /**
+     * Adds a listener that triggers when the field's value changes.
+     */
+    void addListener(java.util.function.Consumer<Object> listener);
 }

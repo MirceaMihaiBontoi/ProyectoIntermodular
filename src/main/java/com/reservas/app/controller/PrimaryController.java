@@ -5,7 +5,6 @@ import com.reservas.app.dao.MetadataDAO;
 import com.reservas.app.util.DialogHelper;
 import com.reservas.app.web.WebServer;
 import javafx.application.Platform;
-import java.awt.Desktop;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;

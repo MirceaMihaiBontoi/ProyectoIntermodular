@@ -58,4 +58,9 @@ public class ComboFormField implements IFormField {
             comboBox.setValue(currentValue);
         }
     }
+
+    @Override
+    public void addListener(java.util.function.Consumer<Object> listener) {
+        comboBox.valueProperty().addListener((obs, oldVal, newVal) -> listener.accept(newVal));
+    }
 }

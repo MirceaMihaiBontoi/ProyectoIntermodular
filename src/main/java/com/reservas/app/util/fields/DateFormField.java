@@ -49,4 +49,9 @@ public class DateFormField implements IFormField {
     public Control getControl() {
         return datePicker;
     }
+
+    @Override
+    public void addListener(java.util.function.Consumer<Object> listener) {
+        datePicker.valueProperty().addListener((obs, oldVal, newVal) -> listener.accept(newVal));
+    }
 }

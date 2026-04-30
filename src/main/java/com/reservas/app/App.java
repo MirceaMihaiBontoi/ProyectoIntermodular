@@ -104,13 +104,6 @@ public class App extends Application {
         WebServer.stop();
     }
 
-    /**
-     * Utility to load FXML resources.
-     */
-    private static Parent loadFXML(String fxml) throws IOException {
-        FXMLLoader fxmlLoader = new FXMLLoader(App.class.getResource("/com/reservas/app/" + fxml + ".fxml"));
-        return fxmlLoader.load();
-    }
 
     public static void main(String[] args) {
         launch(args);

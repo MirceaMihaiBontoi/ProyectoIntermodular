@@ -1,111 +1,193 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Reservation System - Staff</title>
-    <link rel="stylesheet" href="css/styles.css">
-</head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h1>Reservation System</h1>
-            <p>Staff Panel - Reservation Management</p>
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Reservation System - Staff</title>
+        <link rel="stylesheet" href="css/styles.css" />
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h1>Reservation System</h1>
+                <p>Staff Panel - Reservation Management</p>
+            </div>
+
+            <div class="nav" id="mainNav">
+                <button class="nav-btn active" data-section="reservas">
+                    Reservations
+                </button>
+                <button class="nav-btn" data-section="nueva-reserva">
+                    New Reservation
+                </button>
+                <button class="nav-btn" data-section="usuarios">Users</button>
+                <button class="nav-btn" data-section="recursos">
+                    Resources
+                </button>
+            </div>
+
+            <div class="content">
+                <!-- Reservations Section -->
+                <div id="reservas" class="section active">
+                    <div class="search-box">
+                        <input
+                            type="text"
+                            id="searchReservas"
+                            placeholder="Search reservations..."
+                        />
+                    </div>
+                    <div id="reservasLoading" class="loading">
+                        Loading reservations...
+                    </div>
+                    <div
+                        id="reservasError"
+                        class="error"
+                        style="display: none"
+                    ></div>
+                    <div
+                        id="reservasSuccess"
+                        class="success"
+                        style="display: none"
+                    ></div>
+                    <table
+                        class="table"
+                        id="reservasTable"
+                        style="display: none"
+                    >
+                        <thead>
+                            <tr>
+                                <th>Resource</th>
+                                <th>User</th>
+                                <th>Date</th>
+                                <th>Time</th>
+                                <th>Reason</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="reservasBody"></tbody>
+                    </table>
+                </div>
+
+                <!-- New Reservation Section -->
+                <div id="nueva-reserva" class="section">
+                    <div class="card">
+                        <h3>Create New Reservation</h3>
+                        <form id="reservaForm">
+                            <div class="form-group">
+                                <label for="recurso" class="label-mandatory"
+                                    >Resource</label
+                                >
+                                <select id="recurso" required>
+                                    <option value="">Select resource...</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="usuario" class="label-mandatory"
+                                    >User</label
+                                >
+                                <select id="usuario" required>
+                                    <option value="">Select user...</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="fecha" class="label-mandatory"
+                                    >Date</label
+                                >
+                                <input type="date" id="fecha" required />
+                            </div>
+                            <div class="form-group">
+                                <label for="horaInicio" class="label-mandatory"
+                                    >Start Time</label
+                                >
+                                <input type="time" id="horaInicio" required />
+                            </div>
+                            <div class="form-group">
+                                <label for="horaFin" class="label-mandatory"
+                                    >End Time</label
+                                >
+                                <input type="time" id="horaFin" required />
+                            </div>
+                            <div class="form-group">
+                                <label for="numeroPlazas"
+                                    >Number of Seats (Optional)</label
+                                >
+                                <input
+                                    type="number"
+                                    id="numeroPlazas"
+                                    min="1"
+                                />
+                            </div>
+                            <div class="form-group">
+                                <label for="motivo">Reason (Optional)</label>
+                                <textarea id="motivo" rows="3"></textarea>
+                            </div>
+                            <button type="submit" class="btn btn-primary">
+                                Create Reservation
+                            </button>
+                        </form>
+                    </div>
+                    <div
+                        id="nueva-reservaError"
+                        class="error"
+                        style="display: none"
+                    ></div>
+                    <div
+                        id="nueva-reservaSuccess"
+                        class="success"
+                        style="display: none"
+                    ></div>
+                </div>
+
+                <!-- Users Section -->
+                <div id="usuarios" class="section">
+                    <div class="search-box">
+                        <input
+                            type="text"
+                            id="searchUsuarios"
+                            placeholder="Search users..."
+                        />
+                    </div>
+                    <div id="usuariosLoading" class="loading">
+                        Loading users...
+                    </div>
+                    <div
+                        id="usuariosError"
+                        class="error"
+                        style="display: none"
+                    ></div>
+                    <div
+                        id="usuariosGrid"
+                        class="grid"
+                        style="display: none"
+                    ></div>
+                </div>
+
+                <!-- Resources Section -->
+                <div id="recursos" class="section">
+                    <div class="search-box">
+                        <input
+                            type="text"
+                            id="searchRecursos"
+                            placeholder="Search resources..."
+                        />
+                    </div>
+                    <div id="recursosLoading" class="loading">
+                        Loading resources...
+                    </div>
+                    <div
+                        id="recursosError"
+                        class="error"
+                        style="display: none"
+                    ></div>
+                    <div
+                        id="recursosGrid"
+                        class="grid"
+                        style="display: none"
+                    ></div>
+                </div>
+            </div>
         </div>
 
-        <div class="nav" id="mainNav">
-            <button class="nav-btn active" data-section="reservas">Reservations</button>
-            <button class="nav-btn" data-section="nueva-reserva">New Reservation</button>
-            <button class="nav-btn" data-section="usuarios">Users</button>
-            <button class="nav-btn" data-section="recursos">Resources</button>
-        </div>
-
-        <div class="content">
-            <!-- Reservations Section -->
-            <div id="reservas" class="section active">
-                <div class="search-box">
-                    <input type="text" id="searchReservas" placeholder="Search reservations...">
-                </div>
-                <div id="reservasLoading" class="loading">Loading reservations...</div>
-                <div id="reservasError" class="error" style="display: none;"></div>
-                <div id="reservasSuccess" class="success" style="display: none;"></div>
-                <table class="table" id="reservasTable" style="display: none;">
-                    <thead>
-                        <tr>
-                            <th>Resource</th>
-                            <th>User</th>
-                            <th>Date</th>
-                            <th>Time</th>
-                            <th>Reason</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="reservasBody"></tbody>
-                </table>
-            </div>
-
-            <!-- New Reservation Section -->
-            <div id="nueva-reserva" class="section">
-                <div class="card">
-                    <h3>Create New Reservation</h3>
-                    <form id="reservaForm">
-                        <div class="form-group">
-                            <label for="recurso">Resource</label>
-                            <select id="recurso" required>
-                                <option value="">Select resource...</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="usuario">User</label>
-                            <select id="usuario" required>
-                                <option value="">Select user...</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="fecha">Date</label>
-                            <input type="date" id="fecha" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="horaInicio">Start Time</label>
-                            <input type="time" id="horaInicio" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="horaFin">End Time</label>
-                            <input type="time" id="horaFin" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="motivo">Reason</label>
-                            <textarea id="motivo" rows="3" required></textarea>
-                        </div>
-                        <button type="submit" class="btn btn-primary">Create Reservation</button>
-                    </form>
-                </div>
-                <div id="reservaError" class="error" style="display: none;"></div>
-                <div id="reservaSuccess" class="success" style="display: none;"></div>
-            </div>
-
-            <!-- Users Section -->
-            <div id="usuarios" class="section">
-                <div class="search-box">
-                    <input type="text" id="searchUsuarios" placeholder="Search users...">
-                </div>
-                <div id="usuariosLoading" class="loading">Loading users...</div>
-                <div id="usuariosError" class="error" style="display: none;"></div>
-                <div id="usuariosGrid" class="grid" style="display: none;"></div>
-            </div>
-
-            <!-- Resources Section -->
-            <div id="recursos" class="section">
-                <div class="search-box">
-                    <input type="text" id="searchRecursos" placeholder="Search resources...">
-                </div>
-                <div id="recursosLoading" class="loading">Loading resources...</div>
-                <div id="recursosError" class="error" style="display: none;"></div>
-                <div id="recursosGrid" class="grid" style="display: none;"></div>
-            </div>
-        </div>
-    </div>
-
-    <script type="module" src="js/app.js"></script>
-</body>
+        <script type="module" src="js/app.js"></script>
+    </body>
 </html>

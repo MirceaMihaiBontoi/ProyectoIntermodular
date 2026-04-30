@@ -15,23 +15,37 @@ public class DAOProvider {
 
     private DAOProvider() {}
 
-    public static void insert(String tableName, Map<String, Object> data) throws SQLException {
+    public static void insert(String tableName, Map<String, Object> data)
+        throws SQLException {
         if (USUARIO_TABLE.equals(tableName)) {
             UsuarioDAO.insertWithCascade(data);
+        } else if ("reserva".equals(tableName)) {
+            ReservaDAO.createReserva(data);
         } else {
             GenericDAO.insert(tableName, data);
         }
     }
 
-    public static void update(String tableName, List<String> pkNames, List<Object> pkValues, Map<String, Object> data) throws SQLException {
+    public static void update(
+        String tableName,
+        List<String> pkNames,
+        List<Object> pkValues,
+        Map<String, Object> data
+    ) throws SQLException {
         if (USUARIO_TABLE.equals(tableName)) {
             UsuarioDAO.updateWithCascade(pkNames, pkValues, data);
+        } else if ("reserva".equals(tableName)) {
+            ReservaDAO.updateReserva(pkNames, pkValues, data);
         } else {
             GenericDAO.update(tableName, pkNames, pkValues, data);
         }
     }
 
-    public static void delete(String tableName, List<String> pkNames, List<Object> pkValues) throws SQLException {
+    public static void delete(
+        String tableName,
+        List<String> pkNames,
+        List<Object> pkValues
+    ) throws SQLException {
         if (USUARIO_TABLE.equals(tableName)) {
             UsuarioDAO.deleteWithCascade(pkNames, pkValues);
         } else {

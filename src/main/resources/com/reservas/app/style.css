@@ -69,6 +69,15 @@
 .grid-pane { 
     -fx-padding: 15; 
 }
+
+.form-label {
+    -fx-font-weight: bold;
+}
+
+.form-label-mandatory {
+    -fx-text-fill: -fx-danger;
+}
+
 .text-field {
     -fx-background-radius: 4;
     -fx-border-radius: 4;

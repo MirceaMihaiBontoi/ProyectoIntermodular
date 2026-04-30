@@ -46,4 +46,9 @@ public class TextFormField implements IFormField {
     public Control getControl() {
         return textField;
     }
+
+    @Override
+    public void addListener(java.util.function.Consumer<Object> listener) {
+        textField.textProperty().addListener((obs, oldVal, newVal) -> listener.accept(newVal));
+    }
 }
