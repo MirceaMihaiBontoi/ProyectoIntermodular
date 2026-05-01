@@ -150,7 +150,7 @@ const App = {
 
   async handleReservaSubmit(e) {
     e.preventDefault();
-    // Staff UI uses inline feedback blocks instead of browser alerts.
+
     const data = this.getReservaFormData();
 
     const errors = this.validateReservaForm(data);

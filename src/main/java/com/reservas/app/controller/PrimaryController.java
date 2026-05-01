@@ -2,6 +2,7 @@ package com.reservas.app.controller;
 
 import com.reservas.app.dao.GenericDAO;
 import com.reservas.app.dao.MetadataDAO;
+import com.reservas.app.dao.SqlConsoleSupport;
 import com.reservas.app.util.DialogHelper;
 import com.reservas.app.web.WebServer;
 import javafx.application.Platform;
@@ -54,7 +55,7 @@ public class PrimaryController {
     }
 
     /**
-     * Refreshes all table data across all tabs.
+     * Refreshes all table data across all tabs (JavaFX only).
      */
     public void refreshAllData() {
         for (Tab tab : mainTabPane.getTabs()) {
@@ -63,8 +64,6 @@ public class PrimaryController {
                 ((DynamicTableController) controller).refreshData();
             }
         }
-        // Notify web clients that data has changed in the UI
-        WebServer.notifyWeb();
     }
 
     /**
@@ -88,6 +87,7 @@ public class PrimaryController {
                 controller.setOnDataChange(() -> {
                     refreshAllData();
                     refreshAllCombos();
+                    WebServer.notifyWeb();
                 });
                 
                 boolean isJunction = MetadataDAO.getForeignKeys(tableName).size() >= 2;
@@ -115,12 +115,8 @@ public class PrimaryController {
             boolean hasSchemaChange = false;
             boolean hasResults = false;
 
-            String[] statements = sql.split(";");
-            for (String statement : statements) {
-                statement = statement.trim();
-                if (statement.isEmpty()) continue;
-
-                if (statement.toUpperCase().startsWith("SELECT")) {
+            for (String statement : SqlConsoleSupport.statements(sql)) {
+                if (SqlConsoleSupport.isSelect(statement)) {
                     resultsContainer.getChildren().add(buildSqlResultTable(statement));
                     hasResults = true;
                 } else {
@@ -128,16 +124,17 @@ public class PrimaryController {
                     Label label = new Label(statement.substring(0, Math.min(40, statement.length())) + "... → " + affected + " row(s) affected");
                     label.setStyle("-fx-font-weight: bold; -fx-text-fill: #2e7d32;");
                     resultsContainer.getChildren().add(label);
-                    if (isSchemaChange(statement)) hasSchemaChange = true;
+                    if (SqlConsoleSupport.isSchemaChange(statement)) hasSchemaChange = true;
                     hasResults = true;
                 }
             }
             
             if (hasResults) showResultsTab(resultsContainer);
-            
+            // If tables were created/dropped, rebuild tabs first so refreshAllData does not hit stale tab names.
+            if (hasSchemaChange) reloadTabs();
             refreshAllData();
             refreshAllCombos();
-            if (hasSchemaChange) reloadTabs();
+            WebServer.notifyWeb();
             
             sqlConsole.clear();
         } catch (SQLException e) {
@@ -193,11 +190,6 @@ public class PrimaryController {
                 });
         resultTab.setContent(content);
         mainTabPane.getSelectionModel().select(resultTab);
-    }
-
-    private boolean isSchemaChange(String sql) {
-        String upper = sql.trim().toUpperCase();
-        return upper.startsWith("CREATE") || upper.startsWith("DROP") || upper.startsWith("ALTER");
     }
 
     @FXML

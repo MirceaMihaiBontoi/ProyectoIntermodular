@@ -17,10 +17,10 @@ Originally, this exercise required a standard Java application with JavaFX to ha
 The system follows a multi-layer architecture designed to demonstrate clean code and decoupling principles:
 
 - **Modular Backend (REST API)**: A Javalin 7 server running as a daemon thread, providing a JSON API and WebSocket synchronization.
-- **Dynamic Desktop Frontend (JavaFX)**: A native UI that uses reflection and database metadata to automatically generate forms and tables for administrative tasks.
+- **Dynamic Desktop Frontend (JavaFX)**: A native UI that loads screens via FXML and uses **JDBC `DatabaseMetaData`** (through `MetadataDAO`) to generate forms and tables for administrative tasks.
 - **Web Dashboard**: A modern, responsive interface built with ES6 modules for staff-specific reservation management.
 - **Data Access Layer (DAO)**:
-  - `GenericDAO`: Uses Java reflection to perform CRUD operations on any table dynamically.
+  - `GenericDAO`: **Dynamic SQL** built from table and column names, with `PreparedStatement` placeholders for values (`Map`-based insert/update/delete) plus helpers for reading rows as JavaFX `StringProperty` lists or generic `Map`s for the REST API.
   - `Domain DAOs`: Specific logic for `Usuario` and `Reserva`.
 - **Security**: Password hashing using the `at.favre.lib:bcrypt` modular library.
 

@@ -48,10 +48,9 @@ public class App extends Application {
             startWebServer();
             WebServer.setOnDataChange(() -> {
                 if (primaryController != null) {
-                    Platform.runLater(() -> {
-                        primaryController.refreshAllData();
-                        primaryController.refreshAllCombos();
-                    });
+                    // Already on JavaFX thread; web sockets were notified in broadcastRefresh().
+                    primaryController.refreshAllData();
+                    primaryController.refreshAllCombos();
                 }
             });
             
